@@ -1,8 +1,8 @@
 .pos_api_post <- function(endpoint, body = list(), timeout_sec = 600) {
   
   base_url <- getOption(
-    "pos.api.base_url",
-    default = "https://pos-api-server.onrender.com"
+    "oncoseqos.api.base_url",
+    default = "https://oncoseqos-api-server.onrender.com"
   )
   
   url <- paste0(base_url, endpoint)
