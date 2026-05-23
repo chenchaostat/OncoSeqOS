@@ -26,7 +26,7 @@ lambda_from_median <- function(median) {
   result <- .pos_api_post(
     endpoint = "/lambda_from_median",
     body = body,
-    timeout_sec = 60
+    timeout_sec = 70
   )
   
   result
