@@ -1,0 +1,9 @@
+.git
+.Rhistory
+.RData
+.Rproj.user
+*.Rproj
+*.xlsx
+*.png
+*.pdf
+*.csv
