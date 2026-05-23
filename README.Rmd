@@ -45,14 +45,15 @@ The package supports:
 
 You can install the development version of `OncoSeqOS` from GitHub:
 
-```{r, eval = FALSE}
+``` R
+{r, eval = FALSE}
 # install.packages("remotes")
 remotes::install_github("chenchaostat/OncoSeqOS")
 ```
 
 Load the package:
 
-```{r}
+``` R
 library(OncoSeqOS)
 ```
 
@@ -60,7 +61,7 @@ library(OncoSeqOS)
 
 ### Hazard rate from median survival time
 
-```{r}
+``` R
 lambda_from_median(median = 12)
 ```
 
@@ -68,7 +69,7 @@ lambda_from_median(median = 12)
 
 Formula-based calculation:
 
-```{r}
+``` R
 median_sum_exp(
   median_pfs = 3,
   median_postpd = 27,
@@ -78,7 +79,7 @@ median_sum_exp(
 
 Simulation-based calculation:
 
-```{r}
+``` R
 median_sum_exp(
   median_pfs = 3,
   median_postpd = 27,
@@ -90,7 +91,7 @@ median_sum_exp(
 
 ## Simulate one oncology trial
 
-```{r}
+``` R
 trial <- simulate_one_trial(
   n_total = 282,
   median_pfs_ctl = 3,
@@ -118,7 +119,7 @@ trial <- simulate_one_trial(
 
 ## Analyze interim and final data
 
-```{r}
+``` R
 ana_interim <- analyse_trial(
   df = trial$interim,
   time_var = "os_time_interim",
@@ -137,7 +138,7 @@ ana_final
 
 ## Grid simulation
 
-```{r, eval = FALSE}
+``` R
 res <- run_grid_simulation(
   n_simu = 10000,
   n_total = 282,
@@ -167,7 +168,7 @@ head(res$summary)
 
 For README rendering, you may want to use a smaller number of simulations:
 
-```{r}
+``` R
 res <- run_grid_simulation(
   n_simu = 100,
   n_total = 282,
@@ -197,7 +198,7 @@ head(res$summary)
 
 ## Visualization
 
-``` R
+``` r
 plots <- plot_pos_summary(
   summary_data = res$summary,
   x = "prop_ctl_subseq2",

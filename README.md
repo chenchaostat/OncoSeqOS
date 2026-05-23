@@ -35,6 +35,7 @@ The package supports:
 You can install the development version of `OncoSeqOS` from GitHub:
 
 ``` r
+{r, eval = FALSE}
 # install.packages("remotes")
 remotes::install_github("chenchaostat/OncoSeqOS")
 ```
@@ -51,7 +52,6 @@ library(OncoSeqOS)
 
 ``` r
 lambda_from_median(median = 12)
-#> [1] 0.0578
 ```
 
 ### Median of the sum of two exponential distributions
@@ -64,8 +64,6 @@ median_sum_exp(
   median_postpd = 27,
   method = "formula"
 )
-#>    method median_pfs median_postpd median_total
-#> 1 formula          3            27      31.5814
 ```
 
 Simulation-based calculation:
@@ -78,8 +76,6 @@ median_sum_exp(
   n_sim = 100000,
   seed = 2024
 )
-#>       method median_pfs median_postpd median_total mean_total ci_95_low ci_95_high  n_sim
-#> 1 simulation          3            27      31.6826    43.3668    3.3048   147.8796 100000
 ```
 
 ## Simulate one oncology trial
@@ -127,11 +123,7 @@ ana_final <- analyse_trial(
 )
 
 ana_interim
-#>           hr  log_hr     se       z      p medSurvT medSurvC SurvRate12C SurvRate12T n_events n_censor censor_rate
-#> arm=1 0.6989 -0.3583 0.1738 -2.0617 0.0392  26.8423  19.8256      0.6351      0.7815      137      145      0.5142
 ana_final
-#>           hr  log_hr     se       z     p medSurvT medSurvC SurvRate12C SurvRate12T n_events n_censor censor_rate
-#> arm=1 0.5919 -0.5244 0.1505 -3.4845 5e-04  26.8423  18.8378      0.6351      0.7815      187       95      0.3369
 ```
 
 ## Grid simulation
@@ -193,27 +185,6 @@ res <- run_grid_simulation(
 )
 
 head(res$summary)
-#>   n_simu prop_ctl_no prop_ctl_subseq1 prop_ctl_subseq2 prop_trt_no prop_trt_subseq1 prop_trt_subseq2 mean_hr_final median_hr_final sd_hr_final
-#> 1    100        0.75             0.15              0.1        0.95             0.05                0        0.4982          0.4893      0.0771
-#> 2    100        0.65             0.15              0.2        0.95             0.05                0        0.5299          0.5258      0.0736
-#> 3    100        0.55             0.15              0.3        0.95             0.05                0        0.5676          0.5781      0.0853
-#> 4    100        0.45             0.15              0.4        0.95             0.05                0        0.6121          0.6097      0.1005
-#> 5    100        0.35             0.15              0.5        0.95             0.05                0        0.6509          0.6529      0.0922
-#> 6    100        0.25             0.15              0.6        0.95             0.05                0        0.6986          0.6966      0.1095
-#>   mean_medSurvT_final mean_medSurvC_final mean_SurvRate12T_final mean_SurvRate12C_final prob_hr_lt  POS final_CondPOS interim_POS mean_p_final
-#> 1             26.5739             12.4554                 0.7296                 0.5094       1.00 1.00          0.05        0.95       0.0008
-#> 2             26.3390             13.2157                 0.7317                 0.5316       1.00 1.00          0.03        0.97       0.0009
-#> 3             26.5797             14.5847                 0.7263                 0.5655       0.98 0.98          0.18        0.80       0.0033
-#> 4             26.0976             15.5533                 0.7264                 0.5932       0.92 0.92          0.20        0.72       0.0204
-#> 5             26.6452             16.9084                 0.7313                 0.6216       0.87 0.87          0.35        0.52       0.0266
-#> 6             25.7549             17.6816                 0.7209                 0.6391       0.72 0.72          0.36        0.36       0.0775
-#>   median_p_final mean_censor_interim mean_censor_final
-#> 1     1.1313e-06              0.5140            0.3077
-#> 2     0.0000e+00              0.5141            0.3074
-#> 3     2.0000e-04              0.5141            0.3078
-#> 4     6.0000e-04              0.5140            0.3071
-#> 5     3.3000e-03              0.5139            0.3087
-#> 6     1.2800e-02              0.5138            0.3072
 ```
 
 ## Visualization
