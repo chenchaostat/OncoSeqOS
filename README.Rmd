@@ -46,7 +46,6 @@ The package supports:
 You can install the development version of `OncoSeqOS` from GitHub:
 
 ``` r
-{r, eval = FALSE}
 # install.packages("remotes")
 remotes::install_github("chenchaostat/OncoSeqOS")
 ```
@@ -223,7 +222,7 @@ plots$mean_hr
 ## Main functions
 
 | Function | Description |
-|----|----|
+|------------------------------------|------------------------------------|
 | `lambda_from_median()` | Convert median survival time to an exponential hazard rate. |
 | `median_sum_exp()` | Calculate the median of the sum of two exponential distributions. |
 | `simulate_one_trial()` | Simulate one oncology trial. |

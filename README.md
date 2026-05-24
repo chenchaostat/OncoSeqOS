@@ -35,7 +35,6 @@ The package supports:
 You can install the development version of `OncoSeqOS` from GitHub:
 
 ``` r
-{r, eval = FALSE}
 # install.packages("remotes")
 remotes::install_github("chenchaostat/OncoSeqOS")
 ```

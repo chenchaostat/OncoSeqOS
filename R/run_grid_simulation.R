@@ -39,6 +39,289 @@
 #' }
 
 
+
+run_grid_simulation <- function(
+    n_simu = 1000,
+    batch_size = 50,
+    max_retry = 3,
+    checkpoint_file = "grid_simulation_checkpoint.rds",
+    
+    n_total = 282,
+    interim_events = 138,
+    final_events = 197,
+    
+    alpha_interim = 0.0147,
+    alpha_final = 0.04551,
+    
+    median_pfs_ctl = 3,
+    median_pfs_trt = 14.6,
+    
+    median_os_ctl_no = 9.5,
+    median_postpd_ctl_subseq1 = 22,
+    median_postpd_ctl_subseq2 = 15,
+    
+    median_os_trt_no = 25,
+    median_postpd_trt_subseq1 = 22,
+    median_postpd_trt_subseq2 = 15,
+    
+    prop_ctl_subseq1 = 0.15,
+    prop_ctl_subseq2 = seq(0.10, 0.80, by = 0.05),
+    
+    prop_trt_subseq1 = 0.05,
+    prop_trt_subseq2 = 0.05,
+    
+    hr_thr = 0.8,
+    enroll_duration = 11,
+    target_censor_rate = 0.29,
+    seed = 20260427,
+    
+    timeout_sec = 1800
+) {
+  
+  suppressPackageStartupMessages({
+    library(dplyr)
+    library(tibble)
+  })
+  
+  # -----------------------------
+  # 1. 客户端也构建 grid，用于知道 scenario 数量
+  # -----------------------------
+  make_grid <- function() {
+    
+    params <- list(
+      prop_ctl_subseq1 = prop_ctl_subseq1,
+      prop_ctl_subseq2 = prop_ctl_subseq2,
+      prop_trt_subseq1 = prop_trt_subseq1,
+      prop_trt_subseq2 = prop_trt_subseq2
+    )
+    
+    varying_vars <- names(params)[sapply(params, length) > 1]
+    fixed_vars   <- names(params)[sapply(params, length) == 1]
+    
+    if (length(varying_vars) == 0) {
+      grid <- tibble(dummy = 1)
+    } else {
+      grid <- tibble(
+        !!varying_vars[1] := params[[varying_vars[1]]]
+      )
+    }
+    
+    for (v in fixed_vars) {
+      grid[[v]] <- params[[v]]
+    }
+    
+    if ("dummy" %in% names(grid)) {
+      grid$dummy <- NULL
+    }
+    
+    grid <- grid %>%
+      mutate(
+        prop_ctl_no = 1 - prop_ctl_subseq1 - prop_ctl_subseq2,
+        prop_trt_no = 1 - prop_trt_subseq1 - prop_trt_subseq2
+      ) %>%
+      filter(
+        prop_ctl_no >= 0,
+        prop_ctl_subseq1 >= 0,
+        prop_ctl_subseq2 >= 0,
+        prop_trt_no >= 0,
+        prop_trt_subseq1 >= 0,
+        prop_trt_subseq2 >= 0
+      )
+    
+    grid
+  }
+  
+  grid <- make_grid()
+  n_scenarios <- nrow(grid)
+  
+  cat(sprintf("Total scenarios: %d\n", n_scenarios))
+  cat(sprintf("Total simulations per scenario: %d\n", n_simu))
+  cat(sprintf("Batch size: %d\n", batch_size))
+  
+  # -----------------------------
+  # 2. 读取断点
+  # -----------------------------
+  if (file.exists(checkpoint_file)) {
+    cat(sprintf("Loading checkpoint: %s\n", checkpoint_file))
+    checkpoint <- readRDS(checkpoint_file)
+    detail_all <- checkpoint$detail
+    finished_keys <- checkpoint$finished_keys
+  } else {
+    detail_all <- list()
+    finished_keys <- character(0)
+  }
+  
+  # -----------------------------
+  # 3. 单个 batch 调用函数，带重试
+  # -----------------------------
+  call_one_batch <- function(scenario_index, sim_start) {
+    
+    body <- list(
+      n_simu = n_simu,
+      scenario_index = scenario_index,
+      sim_start = sim_start,
+      batch_size = batch_size,
+      
+      n_total = n_total,
+      interim_events = interim_events,
+      final_events = final_events,
+      
+      alpha_interim = alpha_interim,
+      alpha_final = alpha_final,
+      
+      median_pfs_ctl = median_pfs_ctl,
+      median_pfs_trt = median_pfs_trt,
+      
+      median_os_ctl_no = median_os_ctl_no,
+      median_postpd_ctl_subseq1 = median_postpd_ctl_subseq1,
+      median_postpd_ctl_subseq2 = median_postpd_ctl_subseq2,
+      
+      median_os_trt_no = median_os_trt_no,
+      median_postpd_trt_subseq1 = median_postpd_trt_subseq1,
+      median_postpd_trt_subseq2 = median_postpd_trt_subseq2,
+      
+      prop_ctl_subseq1 = prop_ctl_subseq1,
+      prop_ctl_subseq2 = prop_ctl_subseq2,
+      
+      prop_trt_subseq1 = prop_trt_subseq1,
+      prop_trt_subseq2 = prop_trt_subseq2,
+      
+      hr_thr = hr_thr,
+      enroll_duration = enroll_duration,
+      target_censor_rate = target_censor_rate,
+      seed = seed
+    )
+    
+    last_error <- NULL
+    
+    for (attempt in seq_len(max_retry)) {
+      
+      cat(sprintf(
+        "Calling scenario %d, sim_start %d, attempt %d / %d ...\n",
+        scenario_index, sim_start, attempt, max_retry
+      ))
+      
+      res <- tryCatch(
+        {
+          .pos_api_post(
+            endpoint = "/run_grid_simulation",
+            body = body,
+            timeout_sec = timeout_sec
+          )
+        },
+        error = function(e) {
+          last_error <<- e
+          NULL
+        }
+      )
+      
+      if (!is.null(res)) {
+        return(res)
+      }
+      
+      wait_sec <- min(10 * attempt, 60)
+      cat(sprintf("Batch failed. Waiting %d seconds before retry...\n", wait_sec))
+      Sys.sleep(wait_sec)
+    }
+    
+    stop(last_error)
+  }
+  
+  # -----------------------------
+  # 4. 主循环：scenario × batch
+  # -----------------------------
+  for (scenario_index in seq_len(n_scenarios)) {
+    
+    sim_starts <- seq(1, n_simu, by = batch_size)
+    
+    for (sim_start in sim_starts) {
+      
+      key <- paste0("scenario_", scenario_index, "_sim_", sim_start)
+      
+      if (key %in% finished_keys) {
+        cat(sprintf("Skipping finished batch: %s\n", key))
+        next
+      }
+      
+      res <- call_one_batch(
+        scenario_index = scenario_index,
+        sim_start = sim_start
+      )
+      
+      detail_batch <- as.data.frame(res$detail)
+      
+      detail_all[[key]] <- detail_batch
+      finished_keys <- c(finished_keys, key)
+      
+      saveRDS(
+        list(
+          detail = detail_all,
+          finished_keys = finished_keys
+        ),
+        checkpoint_file
+      )
+      
+      cat(sprintf("Saved checkpoint after %s\n", key))
+    }
+  }
+  
+  # -----------------------------
+  # 5. 合并所有 detail
+  # -----------------------------
+  detail_all_df <- bind_rows(detail_all)
+  
+  # -----------------------------
+  # 6. 最终 summary
+  # -----------------------------
+  summary_all <- detail_all_df %>%
+    group_by(
+      scenario_index,
+      prop_ctl_no,
+      prop_ctl_subseq1,
+      prop_ctl_subseq2,
+      prop_trt_no,
+      prop_trt_subseq1,
+      prop_trt_subseq2
+    ) %>%
+    summarise(
+      n_simu = n(),
+      
+      mean_hr_final = mean(hr_final, na.rm = TRUE),
+      median_hr_final = median(hr_final, na.rm = TRUE),
+      sd_hr_final = sd(hr_final, na.rm = TRUE),
+      
+      mean_medSurvT_final = mean(medSurvT_final, na.rm = TRUE),
+      mean_medSurvC_final = mean(medSurvC_final, na.rm = TRUE),
+      
+      mean_SurvRate12T_final = mean(SurvRate12T_final, na.rm = TRUE),
+      mean_SurvRate12C_final = mean(SurvRate12C_final, na.rm = TRUE),
+      
+      prob_hr_lt = mean(final_hr_lt, na.rm = TRUE),
+      
+      POS = mean(overall_success, na.rm = TRUE),
+      final_CondPOS = mean(cond_final_success, na.rm = TRUE),
+      interim_POS = mean(interim_success, na.rm = TRUE),
+      
+      mean_p_final = mean(p_final, na.rm = TRUE),
+      median_p_final = median(p_final, na.rm = TRUE),
+      
+      mean_censor_interim = mean(censor_interim, na.rm = TRUE),
+      mean_censor_final = mean(censor_final, na.rm = TRUE),
+      
+      .groups = "drop"
+    ) %>%
+    arrange(scenario_index)
+  
+  list(
+    summary = summary_all,
+    # detail = detail_all_df,
+    checkpoint_file = checkpoint_file
+  )
+}
+
+
+
+
 # 
 # run_grid_simulation <- function(
 #     n_simu = 1000,
@@ -299,76 +582,76 @@
 
 
 
-
-run_grid_simulation <- function(
-    n_simu = 1000,
-    n_total = 282,
-    interim_events = 138,
-    final_events = 197,
-
-    alpha_interim = 0.0147,
-    alpha_final = 0.04551,
-
-    median_pfs_ctl = 3,
-    median_pfs_trt = 14.6,
-
-    median_os_ctl_no = 9.5,
-    median_postpd_ctl_subseq1 = 22,
-    median_postpd_ctl_subseq2 = 15,
-
-    median_os_trt_no = 25,
-    median_postpd_trt_subseq1 = 22,
-    median_postpd_trt_subseq2 = 15,
-
-    prop_ctl_subseq1 = 0.15,
-    prop_ctl_subseq2 = seq(0.10, 0.80, by = 0.05),
-
-    prop_trt_subseq1 = 0.05,
-    prop_trt_subseq2 = 0.05,
-
-    hr_thr = 0.8,
-    enroll_duration = 11,
-    target_censor_rate = 0.29,
-    seed = 20260427
-) {
-
-  body <- list(
-    n_simu = n_simu,
-    n_total = n_total,
-    interim_events = interim_events,
-    final_events = final_events,
-
-    alpha_interim = alpha_interim,
-    alpha_final = alpha_final,
-
-    median_pfs_ctl = median_pfs_ctl,
-    median_pfs_trt = median_pfs_trt,
-
-    median_os_ctl_no = median_os_ctl_no,
-    median_postpd_ctl_subseq1 = median_postpd_ctl_subseq1,
-    median_postpd_ctl_subseq2 = median_postpd_ctl_subseq2,
-
-    median_os_trt_no = median_os_trt_no,
-    median_postpd_trt_subseq1 = median_postpd_trt_subseq1,
-    median_postpd_trt_subseq2 = median_postpd_trt_subseq2,
-
-    prop_ctl_subseq1 = prop_ctl_subseq1,
-    prop_ctl_subseq2 = prop_ctl_subseq2,
-
-    prop_trt_subseq1 = prop_trt_subseq1,
-    prop_trt_subseq2 = prop_trt_subseq2,
-
-    hr_thr = hr_thr,
-    enroll_duration = enroll_duration,
-    target_censor_rate = target_censor_rate,
-    seed = seed
-  )
-
-  result <- .pos_api_post(
-    endpoint = "/run_grid_simulation",
-    body = body,
-    timeout_sec = 36000
-  )
-
-  result
-}
+# 
+# run_grid_simulation <- function(
+#     n_simu = 1000,
+#     n_total = 282,
+#     interim_events = 138,
+#     final_events = 197,
+# 
+#     alpha_interim = 0.0147,
+#     alpha_final = 0.04551,
+# 
+#     median_pfs_ctl = 3,
+#     median_pfs_trt = 14.6,
+# 
+#     median_os_ctl_no = 9.5,
+#     median_postpd_ctl_subseq1 = 22,
+#     median_postpd_ctl_subseq2 = 15,
+# 
+#     median_os_trt_no = 25,
+#     median_postpd_trt_subseq1 = 22,
+#     median_postpd_trt_subseq2 = 15,
+# 
+#     prop_ctl_subseq1 = 0.15,
+#     prop_ctl_subseq2 = seq(0.10, 0.80, by = 0.05),
+# 
+#     prop_trt_subseq1 = 0.05,
+#     prop_trt_subseq2 = 0.05,
+# 
+#     hr_thr = 0.8,
+#     enroll_duration = 11,
+#     target_censor_rate = 0.29,
+#     seed = 20260427
+# ) {
+# 
+#   body <- list(
+#     n_simu = n_simu,
+#     n_total = n_total,
+#     interim_events = interim_events,
+#     final_events = final_events,
+# 
+#     alpha_interim = alpha_interim,
+#     alpha_final = alpha_final,
+# 
+#     median_pfs_ctl = median_pfs_ctl,
+#     median_pfs_trt = median_pfs_trt,
+# 
+#     median_os_ctl_no = median_os_ctl_no,
+#     median_postpd_ctl_subseq1 = median_postpd_ctl_subseq1,
+#     median_postpd_ctl_subseq2 = median_postpd_ctl_subseq2,
+# 
+#     median_os_trt_no = median_os_trt_no,
+#     median_postpd_trt_subseq1 = median_postpd_trt_subseq1,
+#     median_postpd_trt_subseq2 = median_postpd_trt_subseq2,
+# 
+#     prop_ctl_subseq1 = prop_ctl_subseq1,
+#     prop_ctl_subseq2 = prop_ctl_subseq2,
+# 
+#     prop_trt_subseq1 = prop_trt_subseq1,
+#     prop_trt_subseq2 = prop_trt_subseq2,
+# 
+#     hr_thr = hr_thr,
+#     enroll_duration = enroll_duration,
+#     target_censor_rate = target_censor_rate,
+#     seed = seed
+#   )
+# 
+#   result <- .pos_api_post(
+#     endpoint = "/run_grid_simulation",
+#     body = body,
+#     timeout_sec = 36000
+#   )
+# 
+#   result
+# }
