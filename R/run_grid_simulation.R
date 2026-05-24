@@ -360,7 +360,21 @@ run_grid_simulation <- function(
       
       detail_batch <- as.data.frame(res$detail)
       
-      # 这里会覆盖同名 key 的旧结果
+      scenario_row <- grid[scenario_index, , drop = FALSE]
+      
+      detail_batch$scenario_index <- scenario_index
+      
+      detail_batch$prop_ctl_subseq1 <- scenario_row$prop_ctl_subseq1
+      detail_batch$prop_ctl_subseq2 <- scenario_row$prop_ctl_subseq2
+      detail_batch$prop_trt_subseq1 <- scenario_row$prop_trt_subseq1
+      detail_batch$prop_trt_subseq2 <- scenario_row$prop_trt_subseq2
+      
+      detail_batch$prop_ctl_no <- scenario_row$prop_ctl_no
+      detail_batch$prop_trt_no <- scenario_row$prop_trt_no
+      
+      detail_batch$sim_start <- sim_start
+      detail_batch$batch_key <- key
+      
       detail_all[[key]] <- detail_batch
       
       # 防止 finished_keys 重复累积
