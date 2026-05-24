@@ -191,14 +191,205 @@ head(res$summary)
 ## Visualization
 
 ``` r
-plots <- plot_pos_summary(
-  summary_data = res$summary,
-  x = "prop_ctl_subseq2",
-  therapy_name = "CD20/CD30",
-  return = "list"
+suppressPackageStartupMessages({
+  library(ggplot2)
+  library(tidyverse)
+  library(scales)
+  library(patchwork)
+})
+# 1. SCI theme
+theme_sci <- function(base_size = 14, base_family = "sans") {
+  theme_bw(base_size = base_size, base_family = base_family) +
+    theme(
+      plot.title = element_text(face = "bold", hjust = 0.5, size = 16, lineheight = 1.05),
+      plot.subtitle = element_text(hjust = 0.5, size = base_size - 1),
+      axis.text = element_text(size = 13, color = "black"),
+      axis.title = element_text(face = "bold", size = 15, color = "black"),
+      panel.grid.major = element_line(color = "grey85", linewidth = 0.4),
+      panel.grid.minor = element_blank(),
+      panel.border = element_blank(),
+      axis.line = element_line(color = "black", linewidth = 0.8),
+      legend.title = element_text(face = "bold"),
+      legend.text = element_text(size = base_size - 1),
+      legend.background = element_rect(fill = alpha("white", 0.80), color = "grey60"),
+      legend.key = element_blank(),
+      strip.background = element_rect(fill = "grey95", color = "black"),
+      strip.text = element_text(face = "bold")
+    )
+}
+# 2. data checking
+required_cols <- c(
+  "prop_ctl_subseq2",
+  "prob_hr_lt", "POS", "final_CondPOS", "interim_POS",
+  "mean_SurvRate12C_final", "mean_SurvRate12T_final",
+  "mean_medSurvC_final", "mean_medSurvT_final",
+  "mean_hr_final"
 )
+missing_cols <- setdiff(required_cols, names(res$summary))
+if (length(missing_cols) > 0) {
+  stop("The following required columns are missing in res$summary: ",
+       paste(missing_cols, collapse = ", "))
+}
+plot_dat <- res$summary %>%
+  arrange(prop_ctl_subseq2)
+# 3. color
+cols_prob <- c(
+  "Pr(HR < 0.75)" = "#1B9E77",
+  "Overall Power" = "#D95F02",
+  "Final Conditional Power" = "#7570B3",
+  "Interim Power" = "#E7298A"
+)
+cols_group <- c(
+  "Control arm" = "#1B9E77",
+  "Treatment arm" = "#D95F02"
+)
+col_hr <- "#2C7FB8"
 
-plots$probability
+# 4. Figure 1
+#    Probability-related metrics
+df_fig1 <- plot_dat %>%
+  select(prop_ctl_subseq2, prob_hr_lt, POS, final_CondPOS, interim_POS) %>%
+  pivot_longer(
+    cols = -prop_ctl_subseq2,
+    names_to = "Metric",
+    values_to = "Value"
+  ) %>%
+  mutate(
+    Metric = factor(
+      Metric,
+      levels = c("prob_hr_lt", "POS", "final_CondPOS", "interim_POS"),
+      labels = c("Pr(HR < 0.75)", "Overall Power", "Final Conditional Power", "Interim Power")
+    )
+  )
+p1 <- ggplot(df_fig1, aes(x = 100 * prop_ctl_subseq2, y = Value, color = Metric)) +
+  geom_line(linewidth = 1.2) +
+  geom_point(size = 2.5) +
+  scale_color_manual(values = cols_prob) +
+  scale_x_continuous(
+    breaks = pretty_breaks(n = 8)
+  ) +
+  scale_y_continuous(
+    limits = c(0, 1),
+    breaks = seq(0, 1, by = 0.1),
+    labels = label_number(accuracy = 0.01)
+  ) +
+  labs(
+    title = "Effect of proportion of control patients receiving subsequent therapy\nafter PD on probability-related metrics",
+    x = "Proportion of control patients receiving subsequent therapy after PD (%)",
+    y = "Probability",
+    color = "Metric"
+  ) +
+  theme_sci() +
+  theme(
+    legend.position = c(0.98, 0.98),
+    legend.justification = c(1, 1)
+  )
+# 5. Figure 2
+#    12-month survival rate
+df_fig2 <- plot_dat %>%
+  select(prop_ctl_subseq2, mean_SurvRate12C_final, mean_SurvRate12T_final) %>%
+  mutate(
+    mean_SurvRate12C_final = mean_SurvRate12C_final * 100,
+    mean_SurvRate12T_final = mean_SurvRate12T_final * 100
+  ) %>%
+  pivot_longer(
+    cols = -prop_ctl_subseq2,
+    names_to = "Group",
+    values_to = "Value"
+  ) %>%
+  mutate(
+    Group = factor(
+      Group,
+      levels = c("mean_SurvRate12C_final", "mean_SurvRate12T_final"),
+      labels = c("Control arm", "Treatment arm")
+    )
+  )
+p2 <- ggplot(df_fig2, aes(x = 100 * prop_ctl_subseq2, y = Value, color = Group)) +
+  geom_line(linewidth = 1.2) +
+  geom_point(size = 2.5) +
+  scale_color_manual(values = cols_group) +
+  scale_x_continuous(
+    breaks = pretty_breaks(n = 8)
+  ) +
+  scale_y_continuous(
+    limits = c(50, 75),
+    breaks = seq(50, 75, by = 5),
+    labels = label_number(accuracy = 1)
+  )+
+  labs(
+    title = "Effect of proportion of control patients receiving subsequent therapy\nafter PD on 12-month survival rate",
+    x = "Proportion of control patients receiving subsequent therapy after PD (%)",
+    y = "12-month survival rate (%)",
+    color = "Group"
+  ) +
+  theme_sci() +
+  theme(
+    legend.position = c(0.02, 0.98),
+    legend.justification = c(0, 1)
+  )
+# 6. Figure 3
+#    Median survival
+df_fig3 <- plot_dat %>%
+  select(prop_ctl_subseq2, mean_medSurvC_final, mean_medSurvT_final) %>%
+  pivot_longer(
+    cols = -prop_ctl_subseq2,
+    names_to = "Group",
+    values_to = "Value"
+  ) %>%
+  mutate(
+    Group = factor(
+      Group,
+      levels = c("mean_medSurvC_final", "mean_medSurvT_final"),
+      labels = c("Control arm", "Treatment arm")
+    )
+  )
+p3 <- ggplot(df_fig3, aes(x = 100 * prop_ctl_subseq2, y = Value, color = Group)) +
+  geom_line(linewidth = 1.2) +
+  geom_point(size = 2.5) +
+  scale_color_manual(values = cols_group) +
+  scale_x_continuous(
+    breaks = pretty_breaks(n = 8)
+  ) +
+  scale_y_continuous(
+    breaks = pretty_breaks(n = 8),
+    labels = label_number(accuracy = 0.1)
+  ) +
+  labs(
+    title = "Effect of proportion of control patients receiving subsequent therapy\nafter PD on median overall survival",
+    x = "Proportion of control patients receiving subsequent therapy after PD (%)",
+    y = "Median overall survival (months)",
+    color = "Group"
+  ) +
+  theme_sci() +
+  theme(
+    legend.position = c(0.02, 0.98),
+    legend.justification = c(0, 1)
+  )
+# 7. Figure 4
+#    Mean hazard ratio
+ymax_hr <- ceiling(max(plot_dat$mean_hr_final) / 0.025) * 0.025
+p4 <- ggplot(plot_dat, aes(x = 100 * prop_ctl_subseq2, y = mean_hr_final)) +
+  geom_line(linewidth = 1.3, color = col_hr) +
+  geom_point(size = 2.8, color = col_hr) +
+  scale_x_continuous(
+    breaks = pretty_breaks(n = 8)
+  ) +
+  scale_y_continuous(
+    limits = c(0.40, ymax_hr),
+    breaks = seq(0.40, ymax_hr, by = 0.025),
+    labels = label_number(accuracy = 0.001)
+  ) +
+  labs(
+    title = "Effect of proportion of control patients receiving subsequent therapy\nafter PD on mean hazard ratio",
+    x = "Proportion of control patients receiving subsequent therapy after PD (%)",
+    y = "Mean hazard ratio"
+  ) +
+  theme_sci()
+
+p1
+p2
+p3
+p4
 ```
 
 ## Main functions
