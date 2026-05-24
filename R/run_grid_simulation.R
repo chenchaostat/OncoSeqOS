@@ -306,7 +306,7 @@ run_grid_simulation <- function(
       res <- tryCatch(
         {
           .pos_api_post(
-            endpoint = "/run_grid_simulation_batch",
+            endpoint = "/run_grid_simulation",
             body = body,
             timeout_sec = timeout_sec
           )
