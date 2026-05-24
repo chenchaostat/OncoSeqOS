@@ -47,6 +47,9 @@
 #'   title = "Probability of Success by Subsequent Therapy Proportion"
 #' )
 #' }
+
+
+
 plot_pos_lines <- function(
     data,
     x,
@@ -56,14 +59,10 @@ plot_pos_lines <- function(
     title = NULL,
     xlab = NULL,
     ylab = NULL,
-    
-    # API-friendly versions of transformation arguments.
-    # The server should map these strings to actual R functions.
-    y_transform = "identity",
-    x_transform = "percent",
-    
+    y_transform = identity,
+    x_transform = function(z) z * 100,
     y_limits = NULL,
-    y_breaks = NULL,
+    y_breaks = waiver(),
     x_breaks_n = 8,
     y_breaks_n = 6,
     y_label_accuracy = NULL,
@@ -77,56 +76,227 @@ plot_pos_lines <- function(
     point_size = NULL,
     title_width = 68,
     include_zero = FALSE,
-    grid = TRUE,
-    
-    return_type = "plot",
-    timeout_sec = 3600
+    grid = TRUE
 ) {
-  
   stopifnot(is.data.frame(data))
   
-  body <- list(
-    data = data,
-    x = x,
-    y_cols = y_cols,
-    
-    labels = labels,
-    colors = colors,
-    title = title,
-    xlab = xlab,
-    ylab = ylab,
-    
-    y_transform = y_transform,
-    x_transform = x_transform,
-    
-    y_limits = y_limits,
-    y_breaks = y_breaks,
-    x_breaks_n = x_breaks_n,
-    y_breaks_n = y_breaks_n,
-    y_label_accuracy = y_label_accuracy,
-    x_label_accuracy = x_label_accuracy,
-    
-    legend_title = legend_title,
-    legend_position = legend_position,
-    
-    width = width,
-    height = height,
-    base_size = base_size,
-    line_width = line_width,
-    point_size = point_size,
-    title_width = title_width,
-    
-    include_zero = include_zero,
-    grid = grid,
-    
-    return_type = return_type
+  if (!x %in% names(data)) {
+    stop("Column specified in `x` not found: ", x)
+  }
+  
+  missing_y <- setdiff(y_cols, names(data))
+  if (length(missing_y) > 0) {
+    stop("The following y columns are missing: ", paste(missing_y, collapse = ", "))
+  }
+  
+  if (is.null(base_size)) {
+    base_size <- auto_base_size(width = width, height = height)
+  }
+  
+  if (is.null(line_width)) {
+    line_width <- max(0.8, base_size / 11)
+  }
+  
+  if (is.null(point_size)) {
+    point_size <- max(1.8, base_size / 4.5)
+  }
+  
+  if (is.null(labels)) {
+    labels <- y_cols
+  }
+  
+  if (length(labels) != length(y_cols)) {
+    stop("`labels` must have the same length as `y_cols`.")
+  }
+  
+  label_map <- setNames(labels, y_cols)
+  
+  plot_dat <- data %>%
+    arrange(.data[[x]]) %>%
+    mutate(
+      .x_plot = x_transform(.data[[x]])
+    ) %>%
+    select(.x_plot, all_of(y_cols)) %>%
+    pivot_longer(
+      cols = all_of(y_cols),
+      names_to = ".metric",
+      values_to = ".value"
+    ) %>%
+    mutate(
+      .metric = factor(.metric, levels = y_cols, labels = labels),
+      .value = y_transform(.value)
+    )
+  
+  y_lim <- auto_limits(
+    plot_dat$.value,
+    hard_limits = y_limits,
+    include_zero = include_zero
   )
   
-  result <- .pos_api_post(
-    endpoint = "/plot_pos_lines",
-    body = body,
-    timeout_sec = timeout_sec
-  )
+  if (identical(y_breaks, waiver())) {
+    y_breaks <- scales::breaks_extended(n = y_breaks_n)
+  }
   
-  result
+  if (is.null(y_label_accuracy)) {
+    y_labels <- waiver()
+  } else {
+    y_labels <- scales::label_number(accuracy = y_label_accuracy)
+  }
+  
+  if (is.null(colors)) {
+    colors <- scales::hue_pal()(length(labels))
+    names(colors) <- labels
+  } else {
+    if (is.null(names(colors))) {
+      names(colors) <- labels
+    }
+  }
+  
+  if (!is.null(title)) {
+    title <- stringr::str_wrap(title, width = title_width)
+  }
+  
+  p <- ggplot(
+    plot_dat,
+    aes(x = .x_plot, y = .value, color = .metric, group = .metric)
+  ) +
+    geom_line(linewidth = line_width, na.rm = TRUE) +
+    geom_point(size = point_size, na.rm = TRUE) +
+    scale_color_manual(values = colors, drop = FALSE) +
+    scale_x_continuous(
+      breaks = scales::breaks_extended(n = x_breaks_n),
+      labels = scales::label_number(accuracy = x_label_accuracy),
+      expand = expansion(mult = c(0.02, 0.04))
+    ) +
+    scale_y_continuous(
+      limits = y_lim,
+      breaks = y_breaks,
+      labels = y_labels,
+      expand = expansion(mult = c(0.02, 0.05))
+    ) +
+    labs(
+      title = title,
+      x = xlab,
+      y = ylab,
+      color = legend_title
+    ) +
+    theme_pos_sci(
+      base_size = base_size,
+      grid = grid
+    )
+  
+  if (identical(legend_position, "auto")) {
+    lp <- auto_legend_position(
+      plot_dat,
+      x = ".x_plot",
+      y = ".value",
+      prefer = "auto"
+    )
+    
+    if (is.numeric(lp)) {
+      p <- p +
+        theme(
+          legend.position = lp,
+          legend.justification = if (lp[1] < 0.5) c(0, 1) else c(1, 1)
+        )
+    } else {
+      p <- p + theme(legend.position = lp)
+    }
+    
+  } else if (is.numeric(legend_position)) {
+    p <- p +
+      theme(
+        legend.position = legend_position,
+        legend.justification = if (legend_position[1] < 0.5) c(0, 1) else c(1, 1)
+      )
+  } else {
+    p <- p + theme(legend.position = legend_position)
+  }
+  
+  p
 }
+
+
+# plot_pos_lines <- function(
+#     data,
+#     x,
+#     y_cols,
+#     labels = NULL,
+#     colors = NULL,
+#     title = NULL,
+#     xlab = NULL,
+#     ylab = NULL,
+#     
+#     # API-friendly versions of transformation arguments.
+#     # The server should map these strings to actual R functions.
+#     y_transform = "identity",
+#     x_transform = "percent",
+#     
+#     y_limits = NULL,
+#     y_breaks = NULL,
+#     x_breaks_n = 8,
+#     y_breaks_n = 6,
+#     y_label_accuracy = NULL,
+#     x_label_accuracy = 1,
+#     legend_title = NULL,
+#     legend_position = "auto",
+#     width = 10,
+#     height = 6,
+#     base_size = NULL,
+#     line_width = NULL,
+#     point_size = NULL,
+#     title_width = 68,
+#     include_zero = FALSE,
+#     grid = TRUE,
+#     
+#     return_type = "plot",
+#     timeout_sec = 3600
+# ) {
+#   
+#   stopifnot(is.data.frame(data))
+#   
+#   body <- list(
+#     data = data,
+#     x = x,
+#     y_cols = y_cols,
+#     
+#     labels = labels,
+#     colors = colors,
+#     title = title,
+#     xlab = xlab,
+#     ylab = ylab,
+#     
+#     y_transform = y_transform,
+#     x_transform = x_transform,
+#     
+#     y_limits = y_limits,
+#     y_breaks = y_breaks,
+#     x_breaks_n = x_breaks_n,
+#     y_breaks_n = y_breaks_n,
+#     y_label_accuracy = y_label_accuracy,
+#     x_label_accuracy = x_label_accuracy,
+#     
+#     legend_title = legend_title,
+#     legend_position = legend_position,
+#     
+#     width = width,
+#     height = height,
+#     base_size = base_size,
+#     line_width = line_width,
+#     point_size = point_size,
+#     title_width = title_width,
+#     
+#     include_zero = include_zero,
+#     grid = grid,
+#     
+#     return_type = return_type
+#   )
+#   
+#   result <- .pos_api_post(
+#     endpoint = "/plot_pos_lines",
+#     body = body,
+#     timeout_sec = timeout_sec
+#   )
+#   
+#   result
+# }
