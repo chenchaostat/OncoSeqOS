@@ -9,7 +9,14 @@
 #' @param title_prefix A custom prefix added to each plot title. If NULL, the function automatically creates a title prefix based on therapy_name.
 #' @export
 
-
+suppressPackageStartupMessages({
+  library(ggplot2)
+  library(dplyr)
+  library(tidyr)
+  library(scales)
+  library(rlang)
+  library(stringr)
+})
 plot_pos_summary <- function(
     summary_data,
     x = "prop_ctl_subseq2",
