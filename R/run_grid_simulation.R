@@ -40,11 +40,14 @@
 
 
 
-run_grid_simulation <- function(
+run_grid_simulation_resumable <- function(
     n_simu = 1000,
     batch_size = 50,
     max_retry = 3,
     checkpoint_file = "grid_simulation_checkpoint.rds",
+    
+    # 新增：运行模式
+    resume_mode = c("resume", "restart", "overwrite"),
     
     n_total = 282,
     interim_events = 138,
@@ -78,13 +81,15 @@ run_grid_simulation <- function(
     timeout_sec = 1800
 ) {
   
+  resume_mode <- match.arg(resume_mode)
+  
   suppressPackageStartupMessages({
     library(dplyr)
     library(tibble)
   })
   
   # -----------------------------
-  # 1. 客户端也构建 grid，用于知道 scenario 数量
+  # 1. 客户端构建 grid
   # -----------------------------
   make_grid <- function() {
     
@@ -128,6 +133,27 @@ run_grid_simulation <- function(
         prop_trt_subseq2 >= 0
       )
     
+    check_vars <- c(
+      "prop_ctl_subseq1",
+      "prop_ctl_subseq2",
+      "prop_trt_subseq1",
+      "prop_trt_subseq2"
+    )
+    
+    n_unique <- sapply(grid[check_vars], function(x) length(unique(x)))
+    final_varying_vars <- names(n_unique)[n_unique > 1]
+    
+    if (length(final_varying_vars) > 1) {
+      stop(
+        paste0(
+          "Only one variable about subsequent treatment proportions is allowed to vary, but ",
+          length(final_varying_vars),
+          " variables were found to vary: ",
+          paste(final_varying_vars, collapse = ", ")
+        )
+      )
+    }
+    
     grid
   }
   
@@ -137,22 +163,98 @@ run_grid_simulation <- function(
   cat(sprintf("Total scenarios: %d\n", n_scenarios))
   cat(sprintf("Total simulations per scenario: %d\n", n_simu))
   cat(sprintf("Batch size: %d\n", batch_size))
+  cat(sprintf("Resume mode: %s\n", resume_mode))
   
   # -----------------------------
-  # 2. 读取断点
+  # 2. 当前运行参数元信息
   # -----------------------------
-  if (file.exists(checkpoint_file)) {
-    cat(sprintf("Loading checkpoint: %s\n", checkpoint_file))
-    checkpoint <- readRDS(checkpoint_file)
-    detail_all <- checkpoint$detail
-    finished_keys <- checkpoint$finished_keys
-  } else {
+  current_meta <- list(
+    n_simu = n_simu,
+    batch_size = batch_size,
+    
+    n_total = n_total,
+    interim_events = interim_events,
+    final_events = final_events,
+    
+    alpha_interim = alpha_interim,
+    alpha_final = alpha_final,
+    
+    median_pfs_ctl = median_pfs_ctl,
+    median_pfs_trt = median_pfs_trt,
+    
+    median_os_ctl_no = median_os_ctl_no,
+    median_postpd_ctl_subseq1 = median_postpd_ctl_subseq1,
+    median_postpd_ctl_subseq2 = median_postpd_ctl_subseq2,
+    
+    median_os_trt_no = median_os_trt_no,
+    median_postpd_trt_subseq1 = median_postpd_trt_subseq1,
+    median_postpd_trt_subseq2 = median_postpd_trt_subseq2,
+    
+    prop_ctl_subseq1 = prop_ctl_subseq1,
+    prop_ctl_subseq2 = prop_ctl_subseq2,
+    
+    prop_trt_subseq1 = prop_trt_subseq1,
+    prop_trt_subseq2 = prop_trt_subseq2,
+    
+    hr_thr = hr_thr,
+    enroll_duration = enroll_duration,
+    target_censor_rate = target_censor_rate,
+    seed = seed
+  )
+  
+  # -----------------------------
+  # 3. 根据 resume_mode 处理 checkpoint
+  # -----------------------------
+  
+  if (resume_mode == "restart") {
+    if (file.exists(checkpoint_file)) {
+      cat(sprintf("Restart mode: removing old checkpoint: %s\n", checkpoint_file))
+      file.remove(checkpoint_file)
+    }
+    
     detail_all <- list()
     finished_keys <- character(0)
+    checkpoint_meta <- current_meta
+  } else {
+    
+    if (file.exists(checkpoint_file)) {
+      
+      cat(sprintf("Loading checkpoint: %s\n", checkpoint_file))
+      checkpoint <- readRDS(checkpoint_file)
+      
+      detail_all <- checkpoint$detail
+      finished_keys <- checkpoint$finished_keys
+      
+      if (!is.null(checkpoint$meta)) {
+        checkpoint_meta <- checkpoint$meta
+        
+        if (!identical(checkpoint_meta, current_meta)) {
+          warning(
+            paste0(
+              "\nThe existing checkpoint was created with different parameters.\n",
+              "If you want to recompute from scratch, use resume_mode = 'restart'.\n",
+              "If you want to overwrite existing batches, use resume_mode = 'overwrite'.\n"
+            )
+          )
+        }
+        
+      } else {
+        warning(
+          "Old checkpoint has no meta information. Please consider using resume_mode = 'restart'."
+        )
+        checkpoint_meta <- current_meta
+      }
+      
+    } else {
+      
+      detail_all <- list()
+      finished_keys <- character(0)
+      checkpoint_meta <- current_meta
+    }
   }
   
   # -----------------------------
-  # 3. 单个 batch 调用函数，带重试
+  # 4. 单个 batch 调用函数，带重试
   # -----------------------------
   call_one_batch <- function(scenario_index, sim_start) {
     
@@ -204,7 +306,7 @@ run_grid_simulation <- function(
       res <- tryCatch(
         {
           .pos_api_post(
-            endpoint = "/run_grid_simulation",
+            endpoint = "/run_grid_simulation_batch",
             body = body,
             timeout_sec = timeout_sec
           )
@@ -228,7 +330,7 @@ run_grid_simulation <- function(
   }
   
   # -----------------------------
-  # 4. 主循环：scenario × batch
+  # 5. 主循环：scenario × batch
   # -----------------------------
   for (scenario_index in seq_len(n_scenarios)) {
     
@@ -238,9 +340,17 @@ run_grid_simulation <- function(
       
       key <- paste0("scenario_", scenario_index, "_sim_", sim_start)
       
-      if (key %in% finished_keys) {
+      # 关键修改：
+      # resume 模式下：已经完成的跳过
+      # overwrite 模式下：即使已经完成，也重新计算并覆盖
+      # restart 模式下：前面已删除 checkpoint，因此自然从头算
+      if (resume_mode == "resume" && key %in% finished_keys) {
         cat(sprintf("Skipping finished batch: %s\n", key))
         next
+      }
+      
+      if (resume_mode == "overwrite" && key %in% finished_keys) {
+        cat(sprintf("Overwriting finished batch: %s\n", key))
       }
       
       res <- call_one_batch(
@@ -250,13 +360,17 @@ run_grid_simulation <- function(
       
       detail_batch <- as.data.frame(res$detail)
       
+      # 这里会覆盖同名 key 的旧结果
       detail_all[[key]] <- detail_batch
-      finished_keys <- c(finished_keys, key)
+      
+      # 防止 finished_keys 重复累积
+      finished_keys <- unique(c(finished_keys, key))
       
       saveRDS(
         list(
           detail = detail_all,
-          finished_keys = finished_keys
+          finished_keys = finished_keys,
+          meta = current_meta
         ),
         checkpoint_file
       )
@@ -266,12 +380,12 @@ run_grid_simulation <- function(
   }
   
   # -----------------------------
-  # 5. 合并所有 detail
+  # 6. 合并所有 detail
   # -----------------------------
   detail_all_df <- bind_rows(detail_all)
   
   # -----------------------------
-  # 6. 最终 summary
+  # 7. 最终 summary
   # -----------------------------
   summary_all <- detail_all_df %>%
     group_by(
@@ -314,10 +428,13 @@ run_grid_simulation <- function(
   
   list(
     summary = summary_all,
-    # detail = detail_all_df,
-    checkpoint_file = checkpoint_file
+    detail = detail_all_df,
+    checkpoint_file = checkpoint_file,
+    resume_mode = resume_mode
   )
 }
+
+
 
 
 
