@@ -2,7 +2,7 @@
   
   base_url <- getOption(
     "oncoseqos.api.base_url",
-    default = "https://oncoseqos-api-server.onrender.com"
+    default = .api_env$base_url
   )
   
   url <- paste0(base_url, endpoint)
