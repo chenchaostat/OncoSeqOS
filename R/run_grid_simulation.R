@@ -40,7 +40,7 @@
 
 
 
-run_grid_simulation_resumable <- function(
+run_grid_simulation <- function(
     n_simu = 1000,
     batch_size = 50,
     max_retry = 3,
