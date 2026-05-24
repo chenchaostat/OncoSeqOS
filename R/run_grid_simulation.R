@@ -165,6 +165,31 @@ run_grid_simulation <- function(
       
       ana_interim <- analyse_trial(trial$interim, "os_time_interim", "os_status_interim")
       ana_final   <- analyse_trial(trial$final,   "os_time_final",   "os_status_final")
+      add_missing_cols <- function(df) {
+        required_cols <- c(
+          "hr",
+          "log_hr",
+          "se",
+          "z",
+          "p",
+          "medSurvT",
+          "medSurvC",
+          "SurvRate12C",
+          "SurvRate12T",
+          "n_events",
+          "n_censor",
+          "censor_rate"
+        )
+        missing_cols <- setdiff(required_cols, names(df))
+        for (col in missing_cols) {
+          df[[col]] <- NA
+        }
+        df <- df[, required_cols, drop = FALSE]
+        df
+      }
+      ana_interim <- add_missing_cols(ana_interim)
+      ana_final <- add_missing_cols(ana_final)
+      
       
       interim_success <- with(
         ana_interim,
