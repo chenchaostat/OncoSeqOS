@@ -39,6 +39,7 @@
 #' }
 
 
+
 run_grid_simulation <- function(
     n_simu = 1000,
     n_total = 282,
@@ -110,7 +111,28 @@ run_grid_simulation <- function(
       )
     )
   }
-  
+  add_missing_cols <- function(df) {
+    required_cols <- c(
+      "hr",
+      "log_hr",
+      "se",
+      "z",
+      "p",
+      "medSurvT",
+      "medSurvC",
+      "SurvRate12C",
+      "SurvRate12T",
+      "n_events",
+      "n_censor",
+      "censor_rate"
+    )
+    missing_cols <- setdiff(required_cols, names(df))
+    for (col in missing_cols) {
+      df[[col]] <- NA
+    }
+    df <- df[, required_cols, drop = FALSE]
+    df
+  }
 
   all_results <- list()
   
@@ -165,28 +187,7 @@ run_grid_simulation <- function(
       
       ana_interim <- analyse_trial(trial$interim, "os_time_interim", "os_status_interim")
       ana_final   <- analyse_trial(trial$final,   "os_time_final",   "os_status_final")
-      add_missing_cols <- function(df) {
-        required_cols <- c(
-          "hr",
-          "log_hr",
-          "se",
-          "z",
-          "p",
-          "medSurvT",
-          "medSurvC",
-          "SurvRate12C",
-          "SurvRate12T",
-          "n_events",
-          "n_censor",
-          "censor_rate"
-        )
-        missing_cols <- setdiff(required_cols, names(df))
-        for (col in missing_cols) {
-          df[[col]] <- NA
-        }
-        df <- df[, required_cols, drop = FALSE]
-        df
-      }
+
       ana_interim <- add_missing_cols(ana_interim)
       ana_final <- add_missing_cols(ana_final)
       
@@ -280,17 +281,17 @@ run_grid_simulation <- function(
       )
     
     all_results[[r]] <- list(
-      detail = sim_res,
+      # detail = sim_res,
       summary = summary_res
     )
   }
   
   summary_all <- bind_rows(lapply(all_results, function(x) x$summary))
-  detail_all <- bind_rows(lapply(all_results, function(x) x$detail))
+  # detail_all <- bind_rows(lapply(all_results, function(x) x$detail))
   
   list(
-    summary = summary_all,
-    detail = detail_all
+    # detail = detail_all,
+    summary = summary_all
   )
 }
 
