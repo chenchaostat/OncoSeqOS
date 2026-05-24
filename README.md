@@ -44,6 +44,7 @@ Load the package:
 
 ``` r
 library(OncoSeqOS)
+set_api_url("API url")
 ```
 
 ## Quick start
