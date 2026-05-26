@@ -20,6 +20,7 @@ plot_pos_summary <- function(
     return = c("list", "patchwork"),
     title_prefix = NULL
 ) {
+  
   return <- match.arg(return)
   
   required_cols <- c(
@@ -56,13 +57,15 @@ plot_pos_summary <- function(
     therapy_name,
     " after PD (%)"
   )
+  PrHR <- paste0("Pr(HR < ", hr_thr, ")")
   
   cols_prob <- c(
-    "Pr(HR < 0.75)" = "#1B9E77",
+    "#1B9E77",
     "Overall Power" = "#D95F02",
     "Final Conditional Power" = "#7570B3",
     "Interim Power" = "#E7298A"
   )
+  names(cols_prob)[1] <- PrHR
   
   cols_group <- c(
     "Control arm" = "#1B9E77",
@@ -74,7 +77,6 @@ plot_pos_summary <- function(
   dat <- summary_data %>%
     arrange(.data[[x]])
   
-  PrHR <- paste0("Pr(HR < ", hr_thr, ")")
   p1 <- plot_pos_lines(
     data = dat,
     x = x,
