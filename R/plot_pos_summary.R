@@ -13,6 +13,7 @@ plot_pos_summary <- function(
     summary_data,
     x = "prop_ctl_subseq2",
     therapy_name = "CD20/CD30",
+    hr_thr = 0.75,
     width = 10,
     height = 6,
     base_size = NULL,
@@ -73,11 +74,12 @@ plot_pos_summary <- function(
   dat <- summary_data %>%
     arrange(.data[[x]])
   
+  PrHR <- paste0("Pr(HR < ", hr_thr, ")")
   p1 <- plot_pos_lines(
     data = dat,
     x = x,
     y_cols = c("prob_hr_lt", "POS", "final_CondPOS", "interim_POS"),
-    labels = c("Pr(HR < 0.75)", "Overall Power", "Final Conditional Power", "Interim Power"),
+    labels = c(PrHR, "Overall Power", "Final Conditional Power", "Interim Power"),
     colors = cols_prob,
     title = paste0(title_prefix, "probability-related metrics"),
     xlab = xlab,

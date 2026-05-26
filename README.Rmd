@@ -92,6 +92,12 @@ median_sum_exp(
 ## Simulate one oncology trial
 
 ``` r
+library(tibble)
+library(survival)
+library(dplyr)
+library(tidyr)
+library(purrr)
+library(tibble)
 trial <- simulate_one_trial(
   n_total = 282,
   median_pfs_ctl = 3,
@@ -210,6 +216,7 @@ suppressPackageStartupMessages({
 plots <- plot_pos_summary(
   summary_data = res$summary,
   x = "prop_ctl_subseq2",
+  hr_thr = 0.75,
   therapy_name = "CD20/CD30",
   return = "list"
 )
