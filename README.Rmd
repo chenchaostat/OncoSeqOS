@@ -366,6 +366,41 @@ Typical columns include:
 -   `mean_censor_interim`
 -   `mean_censor_final`
 
+
+## Visualization
+
+``` r
+suppressPackageStartupMessages({
+  library(ggplot2)
+  library(dplyr)
+  library(tidyr)
+  library(scales)
+  library(rlang)
+  library(stringr)
+})
+plots <- plot_pos_summary(
+  summary_data = res$summary,
+  x = "prop_ctl_subseq2",
+  hr_thr = 0.75,
+  therapy_name = "CD20/CD30",
+  return = "list"
+)
+plots$probability
+plots$survival_rate_12m
+plots$median_survival
+plots$mean_hr
+```
+## Main functions
+
+| Function | Description |
+|------------------------------------|------------------------------------|
+| `lambda_from_median()` | Convert median survival time to an exponential hazard rate. |
+| `median_sum_exp()` | Calculate the median of the sum of two exponential distributions. |
+| `simulate_one_trial()` | Simulate one oncology trial. |
+| `analyse_trial()` | Analyze interim or final trial data. |
+| `run_grid_simulation()` | Run grid-based simulation scenarios. |
+| `plot_pos_summary()` | Visualize probability of success summaries. |
+
 ## Common Issues
 
 ### 1. Cannot connect to API server

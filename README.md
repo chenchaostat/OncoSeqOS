@@ -15,6 +15,8 @@
         -   [Submit and Wait for Completion](#submit-and-wait-for-completion)
         -   [Submit Without Waiting](#submit-without-waiting)
     -   [Result Summary](#result-summary)
+    -   [Visualization](#visualization)
+    -   [Main functions](#main-functions)
     -   [Common Issues](#common-issues)
         -   [1. Cannot connect to API server](#1-cannot-connect-to-api-server)
         -   [2. Unauthorized or Forbidden](#2-unauthorized-or-forbidden)
@@ -374,6 +376,41 @@ Typical columns include:
 -   `mean_censor_interim`
 -   `mean_censor_final`
 
+## Visualization {#visualization}
+
+``` r
+suppressPackageStartupMessages({
+  library(ggplot2)
+  library(dplyr)
+  library(tidyr)
+  library(scales)
+  library(rlang)
+  library(stringr)
+})
+plots <- plot_pos_summary(
+  summary_data = res$summary,
+  x = "prop_ctl_subseq2",
+  hr_thr = 0.75,
+  therapy_name = "CD20/CD30",
+  return = "list"
+)
+plots$probability
+plots$survival_rate_12m
+plots$median_survival
+plots$mean_hr
+```
+
+## Main functions {#main-functions}
+
+| Function | Description |
+|----|----|
+| `lambda_from_median()` | Convert median survival time to an exponential hazard rate. |
+| `median_sum_exp()` | Calculate the median of the sum of two exponential distributions. |
+| `simulate_one_trial()` | Simulate one oncology trial. |
+| `analyse_trial()` | Analyze interim or final trial data. |
+| `run_grid_simulation()` | Run grid-based simulation scenarios. |
+| `plot_pos_summary()` | Visualize probability of success summaries. |
+
 ## Common Issues {#common-issues}
 
 ### 1. Cannot connect to API server
@@ -444,4 +481,4 @@ Please see the `LICENSE` file for details.
 
 ## Contact {#contact}
 
-For issues, feature requests, or bug reports, please open an issue on GitHub: <https://github.com/chenchaostat/OncoSeqOS/issues>. You can also contact me via email at [chenchaostat\@163.com](mailto:chenchaostat@163.com).
+For issues, feature requests, or bug reports, please open an issue on GitHub: <https://github.com/chenchaostat/OncoSeqOS/issues>. You can also contact me via email at [chenchaostat\@163.com](mailto:chenchaostat@163.com){.email}.
