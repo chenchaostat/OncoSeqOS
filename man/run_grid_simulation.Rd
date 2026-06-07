@@ -30,6 +30,7 @@ run_grid_simulation(
   wait = TRUE,
   interval_sec = 10,
   max_wait_sec = 36000,
+  max_stall_sec = 900,
   verbose = TRUE
 )
 }

@@ -542,7 +542,8 @@ submit_grid_simulation <- function(
     hr_thr = 0.8,
     enroll_duration = 11,
     target_censor_rate = 0.29,
-    seed = 20260427
+    seed = 20260427,
+    max_seconds_per_sim = 120
 ) {
   
   body <- list(
@@ -574,8 +575,10 @@ submit_grid_simulation <- function(
     hr_thr = hr_thr,
     enroll_duration = enroll_duration,
     target_censor_rate = target_censor_rate,
-    seed = seed
+    seed = seed,
+    max_seconds_per_sim = max_seconds_per_sim
   )
+  
   
   .pos_api_post(
     endpoint = "/submit",
@@ -646,16 +649,37 @@ get_job_result <- function(job_id) {
 #' @return Invisibly returns `TRUE` if the job finishes successfully.
 #'
 #' @export
+#' Wait for async job
+#'
+#' @description
+#' Poll the API server until an asynchronous job finishes, fails, stalls, or times out.
+#'
+#' @param job_id Character string. Job ID returned by `submit_grid_simulation()`.
+#' @param interval_sec Numeric. Polling interval in seconds.
+#' @param max_wait_sec Numeric. Maximum waiting time in seconds.
+#' @param max_stall_sec Numeric. Maximum allowed seconds without progress change.
+#' @param verbose Logical. Whether to print progress messages.
+#'
+#' @return Invisibly returns `TRUE` if the job finishes successfully.
+#'
+#' @export
 wait_for_job <- function(job_id,
                          interval_sec = 10,
                          max_wait_sec = 36000,
+                         max_stall_sec = 900,
                          verbose = TRUE) {
   
   start_time <- Sys.time()
+  last_progress_time <- Sys.time()
+  last_done <- NA
+  last_progress <- NA
   
   repeat {
     
     status <- get_job_status(job_id)
+    
+    current_done <- if (!is.null(status$done)) status$done else NA
+    current_progress <- if (!is.null(status$progress)) status$progress else NA
     
     if (verbose) {
       progress_text <- if (!is.null(status$progress) && !is.na(status$progress)) {
@@ -676,13 +700,20 @@ wait_for_job <- function(job_id,
         "NA"
       }
       
+      failed_text <- if (!is.null(status$failed) && !is.na(status$failed)) {
+        as.character(status$failed)
+      } else {
+        "NA"
+      }
+      
       message(
         "[", format(Sys.time(), "%Y-%m-%d %H:%M:%S"), "] ",
         "job_id=", job_id,
         ", status=", status$status,
         ", progress=", progress_text,
         ", done=", done_text,
-        ", total=", total_text
+        ", total=", total_text,
+        ", failed=", failed_text
       )
     }
     
@@ -696,6 +727,51 @@ wait_for_job <- function(job_id,
         "Simulation job failed.\n",
         "job_id: ", job_id, "\n",
         "error: ", error_msg,
+        call. = FALSE
+      )
+    }
+    
+    progress_changed <- FALSE
+    
+    if (!is.na(current_done) && !is.na(last_done)) {
+      if (!identical(as.numeric(current_done), as.numeric(last_done))) {
+        progress_changed <- TRUE
+      }
+    }
+    
+    if (!is.na(current_progress) && !is.na(last_progress)) {
+      if (!identical(as.numeric(current_progress), as.numeric(last_progress))) {
+        progress_changed <- TRUE
+      }
+    }
+    
+    if (is.na(last_done) && !is.na(current_done)) {
+      progress_changed <- TRUE
+    }
+    
+    if (is.na(last_progress) && !is.na(current_progress)) {
+      progress_changed <- TRUE
+    }
+    
+    if (progress_changed) {
+      last_progress_time <- Sys.time()
+      last_done <- current_done
+      last_progress <- current_progress
+    }
+    
+    stall_elapsed <- as.numeric(
+      difftime(Sys.time(), last_progress_time, units = "secs")
+    )
+    
+    if (!is.na(stall_elapsed) && stall_elapsed > max_stall_sec) {
+      stop(
+        "Simulation job appears to be stalled.\n",
+        "job_id: ", job_id, "\n",
+        "No progress change for ", round(stall_elapsed), " seconds.\n",
+        "Last status: ", status$status, "\n",
+        "Last done: ", current_done, "\n",
+        "Last progress: ", current_progress, "\n",
+        "Please check the server-side job directory or error log.",
         call. = FALSE
       )
     }
@@ -715,6 +791,7 @@ wait_for_job <- function(job_id,
     Sys.sleep(interval_sec)
   }
 }
+
 
 
 
@@ -790,6 +867,7 @@ run_grid_simulation <- function(
     wait = TRUE,
     interval_sec = 10,
     max_wait_sec = 36000,
+    max_stall_sec = 900,
     verbose = TRUE
 ) {
   
@@ -842,8 +920,10 @@ run_grid_simulation <- function(
     job_id = job_id,
     interval_sec = interval_sec,
     max_wait_sec = max_wait_sec,
+    max_stall_sec = max_stall_sec,
     verbose = verbose
   )
+  
   
   get_job_result(job_id)
 }

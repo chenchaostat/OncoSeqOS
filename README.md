@@ -1,64 +1,76 @@
--   [OncoSeqOS](#oncoseqos)
-    -   [Disclaimer](#disclaimer)
-    -   [Overview](#overview)
-    -   [Architecture](#architecture)
-    -   [Installation](#installation)
-        -   [Install from GitHub](#install-from-github)
-    -   [API Server Configuration](#api-server-configuration)
-    -   [Health Check](#health-check)
-    -   [Basic Usage](#basic-usage)
-        -   [1. Hazard Rate from Median Survival Time](#1-hazard-rate-from-median-survival-time)
-        -   [2. Median of the Sum of Two Exponential Survival Times](#2-median-of-the-sum-of-two-exponential-survival-times)
-    -   [Simulate One Oncology Trial](#simulate-one-oncology-trial)
-    -   [Analyze Interim and Final Data](#analyze-interim-and-final-data)
-    -   [Grid Simulation](#grid-simulation)
-        -   [Submit and Wait for Completion](#submit-and-wait-for-completion)
-        -   [Submit Without Waiting](#submit-without-waiting)
-    -   [Result Summary](#result-summary)
-    -   [Visualization](#visualization)
-    -   [Main functions](#main-functions)
-    -   [Common Issues](#common-issues)
-        -   [1. Cannot connect to API server](#1-cannot-connect-to-api-server)
-        -   [2. Unauthorized or Forbidden](#2-unauthorized-or-forbidden)
-        -   [3. Job submitted but never finishes](#3-job-submitted-but-never-finishes)
-        -   [4. Large simulation takes a long time](#4-large-simulation-takes-a-long-time)
-    -   [Citation](#citation)
-    -   [License](#license)
-    -   [Contact](#contact)
+
+- [OncoSeqOS](#oncoseqos)
+  - [Disclaimer](#disclaimer)
+  - [Overview](#overview)
+  - [Architecture](#architecture)
+  - [Installation](#installation)
+    - [Install from GitHub](#install-from-github)
+  - [API Server Configuration](#api-server-configuration)
+  - [Health Check](#health-check)
+  - [Basic Usage](#basic-usage)
+    - [1. Hazard Rate from Median Survival
+      Time](#1-hazard-rate-from-median-survival-time)
+    - [2. Median of the Sum of Two Exponential Survival
+      Times](#2-median-of-the-sum-of-two-exponential-survival-times)
+  - [Simulate One Oncology Trial](#simulate-one-oncology-trial)
+  - [Analyze Interim and Final Data](#analyze-interim-and-final-data)
+  - [Grid Simulation](#grid-simulation)
+    - [Submit and Wait for Completion](#submit-and-wait-for-completion)
+    - [Submit Without Waiting](#submit-without-waiting)
+  - [Result Summary](#result-summary)
+  - [Visualization](#visualization)
+  - [Main functions](#main-functions)
+  - [Common Issues](#common-issues)
+    - [1. Cannot connect to API server](#1-cannot-connect-to-api-server)
+    - [2. Unauthorized or Forbidden](#2-unauthorized-or-forbidden)
+    - [3. Job submitted but never
+      finishes](#3-job-submitted-but-never-finishes)
+    - [4. Large simulation takes a long
+      time](#4-large-simulation-takes-a-long-time)
+  - [Citation](#citation)
+  - [License](#license)
+  - [Contact](#contact)
 
 <!-- README.md is generated from README.Rmd. Please edit README.Rmd -->
 
-# OncoSeqOS {#oncoseqos}
+# OncoSeqOS
 
-## Disclaimer {#disclaimer}
+## Disclaimer
 
-`OncoSeqOS` is provided for research and educational purposes only.\
-It is not intended to provide medical advice, clinical recommendations, regulatory guidance, or commercial decision-making support.
+`OncoSeqOS` is provided for research and educational purposes only.  
+It is not intended to provide medical advice, clinical recommendations,
+regulatory guidance, or commercial decision-making support.
 
-Users are responsible for independently validating all simulation assumptions, model outputs, and statistical conclusions before using them in any scientific, regulatory, or business context.
+Users are responsible for independently validating all simulation
+assumptions, model outputs, and statistical conclusions before using
+them in any scientific, regulatory, or business context.
 
-## Overview {#overview}
+## Overview
 
-`OncoSeqOS` is an R package and API-based simulation framework for evaluating how different proportions of post-progression subsequent anti-cancer therapies may influence overall survival outcomes in oncology trials.
+`OncoSeqOS` is an R package and API-based simulation framework for
+evaluating how different proportions of post-progression subsequent
+anti-cancer therapies may influence overall survival outcomes in
+oncology trials.
 
 The package uses a client-server architecture:
 
--   The **server side** runs the computational simulation API.
--   The **R package client** sends simulation requests to the API server.
--   Long-running grid simulations are submitted asynchronously as background jobs.
--   Users can query job progress and retrieve results after completion.
+- The **server side** runs the computational simulation API.
+- The **R package client** sends simulation requests to the API server.
+- Long-running grid simulations are submitted asynchronously as
+  background jobs.
+- Users can query job progress and retrieve results after completion.
 
 Main features include:
 
--   Convert median survival time to exponential hazard rate.
--   Calculate the median of the sum of two exponential survival times.
--   Simulate one oncology trial.
--   Analyze interim and final OS data.
--   Run grid-based simulation scenarios.
--   Track long-running simulation jobs through an API.
--   Retrieve final simulation summary results.
+- Convert median survival time to exponential hazard rate.
+- Calculate the median of the sum of two exponential survival times.
+- Simulate one oncology trial.
+- Analyze interim and final OS data.
+- Run grid-based simulation scenarios.
+- Track long-running simulation jobs through an API.
+- Retrieve final simulation summary results.
 
-## Architecture {#architecture}
+## Architecture
 
 A typical workflow is:
 
@@ -80,11 +92,12 @@ Result files saved on server
 Client queries status and retrieves result
 ```
 
-The server is usually deployed with Docker. The client only needs the R package and network access to the API server.
+The server is usually deployed with Docker. The client only needs the R
+package and network access to the API server.
 
-## Installation {#installation}
+## Installation
 
-### Install from GitHub {#install-from-github}
+### Install from GitHub
 
 ``` r
 # install.packages("remotes")
@@ -97,11 +110,13 @@ Load the package:
 library(OncoSeqOS)
 ```
 
-## API Server Configuration {#api-server-configuration}
+## API Server Configuration
 
-Before using most functions, you need to configure the API server URL and API token.
+Before using most functions, you need to configure the API server URL
+and API token.
 
-For example, if your server IP is `116.62.190.134` and Docker maps the API service to host port `10001`:
+For example, if your server IP is `116.62.190.134` and Docker maps the
+API service to host port `10001`:
 
 ``` r
 library(OncoSeqOS)
@@ -119,7 +134,7 @@ oncoseqos_get_api_token()
 
 By default, the token is masked when displayed.
 
-## Health Check {#health-check}
+## Health Check
 
 The health check endpoint is public and does not require an API token.
 
@@ -147,10 +162,11 @@ If the health check fails, please check:
 
 1.  Whether the API server container is running.
 2.  Whether the server URL and port are correct.
-3.  Whether the cloud security group allows inbound TCP traffic to the mapped port.
+3.  Whether the cloud security group allows inbound TCP traffic to the
+    mapped port.
 4.  Whether the local firewall or server firewall blocks the port.
 
-## Basic Usage {#basic-usage}
+## Basic Usage
 
 ### 1. Hazard Rate from Median Survival Time
 
@@ -188,9 +204,10 @@ median_sum_exp(
 )
 ```
 
-## Simulate One Oncology Trial {#simulate-one-oncology-trial}
+## Simulate One Oncology Trial
 
-The following example simulates one trial with treatment and control arms.
+The following example simulates one trial with treatment and control
+arms.
 
 ``` r
 trial <- simulate_one_trial(
@@ -237,7 +254,7 @@ trial$interim
 trial$final
 ```
 
-## Analyze Interim and Final Data {#analyze-interim-and-final-data}
+## Analyze Interim and Final Data
 
 After simulating one trial, you can analyze interim and final OS data.
 
@@ -260,21 +277,22 @@ ana_final
 
 The analysis result usually includes:
 
--   Hazard ratio
--   log hazard ratio
--   standard error
--   z statistic
--   p value
--   median survival in treatment arm
--   median survival in control arm
--   12-month survival rates
--   event and censoring information
+- Hazard ratio
+- log hazard ratio
+- standard error
+- z statistic
+- p value
+- median survival in treatment arm
+- median survival in control arm
+- 12-month survival rates
+- event and censoring information
 
-## Grid Simulation {#grid-simulation}
+## Grid Simulation
 
-Grid simulation may be computationally intensive. Therefore, `OncoSeqOS` submits the task to the API server and runs it asynchronously.
+Grid simulation may be computationally intensive. Therefore, `OncoSeqOS`
+submits the task to the API server and runs it asynchronously.
 
-### Submit and Wait for Completion {#submit-and-wait-for-completion}
+### Submit and Wait for Completion
 
 ``` r
 res <- run_grid_simulation(
@@ -316,9 +334,10 @@ res <- run_grid_simulation(
 head(res$summary)
 ```
 
-### Submit Without Waiting {#submit-without-waiting}
+### Submit Without Waiting
 
-If the simulation is large, you can submit the job first and query it later.
+If the simulation is large, you can submit the job first and query it
+later.
 
 ``` r
 job <- run_grid_simulation(
@@ -348,7 +367,7 @@ res <- get_job_result(job$job_id)
 head(res$summary)
 ```
 
-## Result Summary {#result-summary}
+## Result Summary
 
 The grid simulation result contains a `summary` data frame.
 
@@ -359,24 +378,24 @@ head(res$summary)
 
 Typical columns include:
 
--   `n_simu`
--   `prop_ctl_no`
--   `prop_ctl_subseq1`
--   `prop_ctl_subseq2`
--   `prop_trt_no`
--   `prop_trt_subseq1`
--   `prop_trt_subseq2`
--   `mean_hr_final`
--   `median_hr_final`
--   `prob_hr_lt`
--   `POS`
--   `final_CondPOS`
--   `interim_POS`
--   `mean_p_final`
--   `mean_censor_interim`
--   `mean_censor_final`
+- `n_simu`
+- `prop_ctl_no`
+- `prop_ctl_subseq1`
+- `prop_ctl_subseq2`
+- `prop_trt_no`
+- `prop_trt_subseq1`
+- `prop_trt_subseq2`
+- `mean_hr_final`
+- `median_hr_final`
+- `prob_hr_lt`
+- `POS`
+- `final_CondPOS`
+- `interim_POS`
+- `mean_p_final`
+- `mean_censor_interim`
+- `mean_censor_final`
 
-## Visualization {#visualization}
+## Visualization
 
 ``` r
 suppressPackageStartupMessages({
@@ -400,7 +419,7 @@ plots$median_survival
 plots$mean_hr
 ```
 
-## Main functions {#main-functions}
+## Main functions
 
 | Function | Description |
 |----|----|
@@ -411,7 +430,7 @@ plots$mean_hr
 | `run_grid_simulation()` | Run grid-based simulation scenarios. |
 | `plot_pos_summary()` | Visualize probability of success summaries. |
 
-## Common Issues {#common-issues}
+## Common Issues
 
 ### 1. Cannot connect to API server
 
@@ -439,7 +458,8 @@ because this uses default port 80.
 
 ### 2. Unauthorized or Forbidden
 
-If you see HTTP 401 or 403 errors, check whether the API token is configured correctly:
+If you see HTTP 401 or 403 errors, check whether the API token is
+configured correctly:
 
 ``` r
 oncoseqos_set_api_token("your-api-token")
@@ -459,7 +479,8 @@ Check job status:
 get_job_status(job_id)
 ```
 
-If the job failed, the returned message should include the server-side error.
+If the job failed, the returned message should include the server-side
+error.
 
 ### 4. Large simulation takes a long time
 
@@ -469,16 +490,20 @@ For testing, start with a small value:
 n_simu = 10
 ```
 
-After confirming the workflow, increase it to a larger value such as 1000 or 10000.
+After confirming the workflow, increase it to a larger value such as
+1000 or 10000.
 
-## Citation {#citation}
+## Citation
 
-If you use `OncoSeqOS` in your work, please cite this repository or the corresponding package version.
+If you use `OncoSeqOS` in your work, please cite this repository or the
+corresponding package version.
 
-## License {#license}
+## License
 
 Please see the `LICENSE` file for details.
 
-## Contact {#contact}
+## Contact
 
-For issues, feature requests, or bug reports, please open an issue on GitHub: <https://github.com/chenchaostat/OncoSeqOS/issues>. You can also contact me via email at [chenchaostat\@163.com](mailto:chenchaostat@163.com){.email}.
+For issues, feature requests, or bug reports, please open an issue on
+GitHub: <https://github.com/chenchaostat/OncoSeqOS/issues>. You can also
+contact me via email at <chenchaostat@163.com>.

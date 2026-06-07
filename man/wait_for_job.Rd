@@ -4,7 +4,13 @@
 \alias{wait_for_job}
 \title{Wait for async job}
 \usage{
-wait_for_job(job_id, interval_sec = 10, max_wait_sec = 36000, verbose = TRUE)
+wait_for_job(
+  job_id,
+  interval_sec = 10,
+  max_wait_sec = 36000,
+  max_stall_sec = 900,
+  verbose = TRUE
+)
 }
 \arguments{
 \item{job_id}{Character string. Job ID returned by `submit_grid_simulation()`.}
@@ -13,11 +19,17 @@ wait_for_job(job_id, interval_sec = 10, max_wait_sec = 36000, verbose = TRUE)
 
 \item{max_wait_sec}{Numeric. Maximum waiting time in seconds.}
 
+\item{max_stall_sec}{Numeric. Maximum allowed seconds without progress change.}
+
 \item{verbose}{Logical. Whether to print progress messages.}
 }
 \value{
 Invisibly returns `TRUE` if the job finishes successfully.
+
+Invisibly returns `TRUE` if the job finishes successfully.
 }
 \description{
 Poll the API server until an asynchronous job finishes, fails, or times out.
+
+Poll the API server until an asynchronous job finishes, fails, stalls, or times out.
 }

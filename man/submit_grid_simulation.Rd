@@ -26,7 +26,8 @@ submit_grid_simulation(
   hr_thr = 0.8,
   enroll_duration = 11,
   target_censor_rate = 0.29,
-  seed = 20260427
+  seed = 20260427,
+  max_seconds_per_sim = 120
 )
 }
 \arguments{
