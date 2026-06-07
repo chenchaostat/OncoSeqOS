@@ -8,6 +8,7 @@ plot_pos_summary(
   summary_data,
   x = "prop_ctl_subseq2",
   therapy_name = "CD20/CD30",
+  hr_thr = 0.75,
   width = 10,
   height = 6,
   base_size = NULL,
@@ -21,6 +22,8 @@ plot_pos_summary(
 \item{x}{The column name used as the x-axis variable. In this function, it usually represents the proportion of control-arm patients receiving subsequent therapy after disease progression.}
 
 \item{therapy_name}{The name of the subsequent therapy displayed in the plot titles and x-axis labels.}
+
+\item{hr_thr}{Numeric. Hazard ratio threshold used to label Pr(HR < hr_thr).}
 
 \item{width}{The intended plot width. It is mainly used to automatically determine the base font size when base_size = NULL.}
 

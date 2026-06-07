@@ -7,6 +7,7 @@
 #' @param base_size The base font size for all plots. If NULL, the function automatically calculates a suitable font size using auto_base_size(width, height).
 #' @param return Determines the output format. If "list", the function returns a named list of four separate ggplot objects. If "patchwork", the function combines the four plots vertically using the patchwork package.
 #' @param title_prefix A custom prefix added to each plot title. If NULL, the function automatically creates a title prefix based on therapy_name.
+#' @param hr_thr Numeric. Hazard ratio threshold used to label Pr(HR < hr_thr).
 #' @export
 
 plot_pos_summary <- function(
@@ -74,8 +75,9 @@ plot_pos_summary <- function(
   
   col_hr <- c("Mean hazard ratio" = "#2C7FB8")
   
-  dat <- summary_data %>%
-    arrange(.data[[x]])
+  dat <- summary_data |>
+    dplyr::arrange(rlang::.data[[x]])
+  
   
   p1 <- plot_pos_lines(
     data = dat,
@@ -135,7 +137,7 @@ plot_pos_summary <- function(
   )
   
   p4 <- plot_pos_lines(
-    data = dat %>% mutate(.mean_hr_label = mean_hr_final),
+    data = dplyr::mutate(dat, .mean_hr_label = rlang::.data$mean_hr_final),
     x = x,
     y_cols = ".mean_hr_label",
     labels = "Mean hazard ratio",
@@ -165,9 +167,13 @@ plot_pos_summary <- function(
     }
     
     return(
-      (p1 / p2 / p3 / p4) +
-        patchwork::plot_layout(heights = c(1, 1, 1, 1))
+      patchwork::wrap_plots(
+        p1, p2, p3, p4,
+        ncol = 1,
+        heights = c(1, 1, 1, 1)
+      )
     )
+    
   }
   
   plots

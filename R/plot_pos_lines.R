@@ -1,25 +1,26 @@
-#' @title Plot POS Lines Through API
+#' @title Plot POS Lines
+#'
 #' @description
-#' Calls server API to generate POS line plot.
+#' Generate a line plot for probability of success or related summary metrics.
 #'
 #' @param data A data.frame containing plotting data.
-#' @param x Column name used as x-axis.
-#' @param y_cols Character vector of y-axis column names.
-#' @param labels Optional labels for y columns.
+#' @param x Character string. Column name used as x-axis.
+#' @param y_cols Character vector. Column names used as y-axis variables.
+#' @param labels Optional character vector of labels for `y_cols`.
 #' @param colors Optional named or unnamed color vector.
 #' @param title Plot title.
 #' @param xlab X-axis label.
 #' @param ylab Y-axis label.
-#' @param y_transform Y transformation name. For example: "identity", "percent".
-#' @param x_transform X transformation name. For example: "identity", "percent".
+#' @param y_transform Function used to transform y values. Default is `identity`.
+#' @param x_transform Function used to transform x values. Default transforms proportions to percentages.
 #' @param y_limits Optional numeric vector of length 2.
-#' @param y_breaks Optional y breaks. Use NULL to let server decide automatically.
+#' @param y_breaks Optional y-axis breaks. Use `ggplot2::waiver()` to let ggplot2 decide.
 #' @param x_breaks_n Number of x-axis breaks.
 #' @param y_breaks_n Number of y-axis breaks.
 #' @param y_label_accuracy Optional y-axis label accuracy.
 #' @param x_label_accuracy X-axis label accuracy.
 #' @param legend_title Legend title.
-#' @param legend_position Legend position. Can be "auto", "right", "bottom", etc.,
+#' @param legend_position Legend position. Can be `"auto"`, `"right"`, `"bottom"`, `"none"`,
 #'   or a numeric vector of length 2.
 #' @param width Plot width.
 #' @param height Plot height.
@@ -27,27 +28,12 @@
 #' @param line_width Line width.
 #' @param point_size Point size.
 #' @param title_width Title wrap width.
-#' @param include_zero Whether y-axis limits should include zero.
-#' @param grid Whether to show grid.
-#' @param return_type Type of result returned by API. For example: "plot", "png", "svg".
-#' @param timeout_sec API timeout in seconds.
+#' @param include_zero Logical. Whether y-axis limits should include zero.
+#' @param grid Logical. Whether to show grid lines.
 #'
-#' @returns API response containing plot result or plot metadata.
+#' @return A ggplot object.
+#'
 #' @export
-#'
-#' @examples
-#' \dontrun{
-#' p <- plot_pos_lines(
-#'   data = res$summary,
-#'   x = "prop_ctl_subseq2",
-#'   y_cols = c("pos_interim", "pos_final"),
-#'   labels = c("Interim POS", "Final POS"),
-#'   xlab = "Control subsequent therapy 2 proportion (%)",
-#'   ylab = "POS",
-#'   title = "Probability of Success by Subsequent Therapy Proportion"
-#' )
-#' }
-
 
 
 plot_pos_lines <- function(
@@ -62,7 +48,7 @@ plot_pos_lines <- function(
     y_transform = identity,
     x_transform = function(z) z * 100,
     y_limits = NULL,
-    y_breaks = waiver(),
+    y_breaks = ggplot2::waiver(),
     x_breaks_n = 8,
     y_breaks_n = 6,
     y_label_accuracy = NULL,
@@ -109,22 +95,20 @@ plot_pos_lines <- function(
     stop("`labels` must have the same length as `y_cols`.")
   }
   
-  label_map <- setNames(labels, y_cols)
-  
-  plot_dat <- data %>%
-    arrange(.data[[x]]) %>%
-    mutate(
-      .x_plot = x_transform(.data[[x]])
-    ) %>%
-    select(.x_plot, all_of(y_cols)) %>%
-    pivot_longer(
-      cols = all_of(y_cols),
+  plot_dat <- data |>
+    dplyr::arrange(rlang::.data[[x]]) |>
+    dplyr::mutate(
+      .x_plot = x_transform(rlang::.data[[x]])
+    ) |>
+    dplyr::select(rlang::.data$.x_plot, dplyr::all_of(y_cols)) |>
+    tidyr::pivot_longer(
+      cols = dplyr::all_of(y_cols),
       names_to = ".metric",
       values_to = ".value"
-    ) %>%
-    mutate(
-      .metric = factor(.metric, levels = y_cols, labels = labels),
-      .value = y_transform(.value)
+    ) |>
+    dplyr::mutate(
+      .metric = factor(rlang::.data$.metric, levels = y_cols, labels = labels),
+      .value = y_transform(rlang::.data$.value)
     )
   
   y_lim <- auto_limits(
@@ -133,12 +117,12 @@ plot_pos_lines <- function(
     include_zero = include_zero
   )
   
-  if (identical(y_breaks, waiver())) {
+  if (identical(y_breaks, ggplot2::waiver())) {
     y_breaks <- scales::breaks_extended(n = y_breaks_n)
   }
   
   if (is.null(y_label_accuracy)) {
-    y_labels <- waiver()
+    y_labels <- ggplot2::waiver()
   } else {
     y_labels <- scales::label_number(accuracy = y_label_accuracy)
   }
@@ -156,25 +140,30 @@ plot_pos_lines <- function(
     title <- stringr::str_wrap(title, width = title_width)
   }
   
-  p <- ggplot(
+  p <- ggplot2::ggplot(
     plot_dat,
-    aes(x = .x_plot, y = .value, color = .metric, group = .metric)
+    ggplot2::aes(
+      x = rlang::.data$.x_plot,
+      y = rlang::.data$.value,
+      color = rlang::.data$.metric,
+      group = rlang::.data$.metric
+    )
   ) +
-    geom_line(linewidth = line_width, na.rm = TRUE) +
-    geom_point(size = point_size, na.rm = TRUE) +
-    scale_color_manual(values = colors, drop = FALSE) +
-    scale_x_continuous(
+    ggplot2::geom_line(linewidth = line_width, na.rm = TRUE) +
+    ggplot2::geom_point(size = point_size, na.rm = TRUE) +
+    ggplot2::scale_color_manual(values = colors, drop = FALSE) +
+    ggplot2::scale_x_continuous(
       breaks = scales::breaks_extended(n = x_breaks_n),
       labels = scales::label_number(accuracy = x_label_accuracy),
-      expand = expansion(mult = c(0.02, 0.04))
+      expand = ggplot2::expansion(mult = c(0.02, 0.04))
     ) +
-    scale_y_continuous(
+    ggplot2::scale_y_continuous(
       limits = y_lim,
       breaks = y_breaks,
       labels = y_labels,
-      expand = expansion(mult = c(0.02, 0.05))
+      expand = ggplot2::expansion(mult = c(0.02, 0.05))
     ) +
-    labs(
+    ggplot2::labs(
       title = title,
       x = xlab,
       y = ylab,
@@ -195,26 +184,27 @@ plot_pos_lines <- function(
     
     if (is.numeric(lp)) {
       p <- p +
-        theme(
+        ggplot2::theme(
           legend.position = lp,
           legend.justification = if (lp[1] < 0.5) c(0, 1) else c(1, 1)
         )
     } else {
-      p <- p + theme(legend.position = lp)
+      p <- p + ggplot2::theme(legend.position = lp)
     }
     
   } else if (is.numeric(legend_position)) {
     p <- p +
-      theme(
+      ggplot2::theme(
         legend.position = legend_position,
         legend.justification = if (legend_position[1] < 0.5) c(0, 1) else c(1, 1)
       )
   } else {
-    p <- p + theme(legend.position = legend_position)
+    p <- p + ggplot2::theme(legend.position = legend_position)
   }
   
   p
 }
+
 
 
 # plot_pos_lines <- function(

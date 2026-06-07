@@ -10,5 +10,14 @@ Encoding: UTF-8
 LazyData: true
 Imports:
     jsonlite,
-	httr
+    httr,
+    ggplot2,
+    dplyr,
+    tidyr,
+    scales,
+    stringr,
+    patchwork,
+    grid,
+    stats,
+    rlang
 Config/roxygen2/version: 8.0.0

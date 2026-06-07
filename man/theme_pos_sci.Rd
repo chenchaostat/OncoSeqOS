@@ -17,7 +17,7 @@ theme_pos_sci(base_size = 12, base_family = "sans", grid = TRUE)
 A ggplot2 theme object.
 }
 \description{
-Calls server API to generate a scientific-style ggplot2 theme.
+Generate a scientific-style ggplot2 theme.
 }
 \examples{
 \dontrun{

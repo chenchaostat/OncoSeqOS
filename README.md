@@ -1,38 +1,101 @@
 
+- [OncoSeqOS](#oncoseqos)
+  - [Disclaimer](#disclaimer)
+  - [Overview](#overview)
+  - [Architecture](#architecture)
+  - [Installation](#installation)
+    - [Install from GitHub](#install-from-github)
+  - [API Server Configuration](#api-server-configuration)
+  - [Health Check](#health-check)
+  - [Basic Usage](#basic-usage)
+    - [1. Hazard Rate from Median Survival
+      Time](#1-hazard-rate-from-median-survival-time)
+    - [2. Median of the Sum of Two Exponential Survival
+      Times](#2-median-of-the-sum-of-two-exponential-survival-times)
+  - [Simulate One Oncology Trial](#simulate-one-oncology-trial)
+  - [Analyze Interim and Final Data](#analyze-interim-and-final-data)
+  - [Grid Simulation](#grid-simulation)
+    - [Submit and Wait for Completion](#submit-and-wait-for-completion)
+    - [Submit Without Waiting](#submit-without-waiting)
+  - [Result Summary](#result-summary)
+  - [Common Issues](#common-issues)
+    - [1. Cannot connect to API server](#1-cannot-connect-to-api-server)
+    - [2. Unauthorized or Forbidden](#2-unauthorized-or-forbidden)
+    - [3. Job submitted but never
+      finishes](#3-job-submitted-but-never-finishes)
+    - [4. Large simulation takes a long
+      time](#4-large-simulation-takes-a-long-time)
+  - [Citation](#citation)
+  - [License](#license)
+  - [Contact](#contact)
+
 <!-- README.md is generated from README.Rmd. Please edit README.Rmd -->
 
 # OncoSeqOS
 
-<!-- badges: start -->
-
-<!-- badges: end -->
-
 ## Disclaimer
 
-This software is provided for research and educational purposes only. It
-is not intended to provide medical advice, clinical recommendations, or
-regulatory guidance. Users are responsible for independently validating
-all results before use in any clinical, regulatory, or commercial
-decision-making.
+`OncoSeqOS` is provided for research and educational purposes only.  
+It is not intended to provide medical advice, clinical recommendations,
+regulatory guidance, or commercial decision-making support.
+
+Users are responsible for independently validating all simulation
+assumptions, model outputs, and statistical conclusions before using
+them in any scientific, regulatory, or business context.
 
 ## Overview
 
-`OncoSeqOS` provides R functions for simulating how the proportion of
-patients receiving subsequent anti-cancer therapy after progressive
-disease may affect overall survival outcomes in oncology trials.
+`OncoSeqOS` is an R package and API-based simulation framework for
+evaluating how different proportions of post-progression subsequent
+anti-cancer therapies may influence overall survival outcomes in
+oncology trials.
 
-The package supports:
+The package uses a client-server architecture:
 
-- Deriving hazard rates from median survival times.
-- Calculating the median of the sum of two exponential distributions.
-- Simulating oncology trials with different subsequent therapy patterns.
-- Performing interim and final survival analyses.
-- Running grid-based simulation scenarios.
-- Visualizing probability of success summaries.
+- The **server side** runs the computational simulation API.
+- The **R package client** sends simulation requests to the API server.
+- Long-running grid simulations are submitted asynchronously as
+  background jobs.
+- Users can query job progress and retrieve results after completion.
+
+Main features include:
+
+- Convert median survival time to exponential hazard rate.
+- Calculate the median of the sum of two exponential survival times.
+- Simulate one oncology trial.
+- Analyze interim and final OS data.
+- Run grid-based simulation scenarios.
+- Track long-running simulation jobs through an API.
+- Retrieve final simulation summary results.
+
+## Architecture
+
+A typical workflow is:
+
+``` text
+R client package
+      |
+      | HTTP request
+      v
+OncoSeqOS API server
+      |
+      | Background R process
+      v
+Simulation job
+      |
+      v
+Result files saved on server
+      |
+      v
+Client queries status and retrieves result
+```
+
+The server is usually deployed with Docker. The client only needs the R
+package and network access to the API server.
 
 ## Installation
 
-You can install the development version of `OncoSeqOS` from GitHub:
+### Install from GitHub
 
 ``` r
 # install.packages("remotes")
@@ -43,18 +106,79 @@ Load the package:
 
 ``` r
 library(OncoSeqOS)
-set_api_url("API url")
 ```
 
-## Quick start
+## API Server Configuration
 
-### Hazard rate from median survival time
+Before using most functions, you need to configure the API server URL
+and API token.
+
+For example, if your server IP is `116.62.190.134` and Docker maps the
+API service to host port `10001`:
+
+``` r
+library(OncoSeqOS)
+
+oncoseqos_set_server("http://116.62.190.134:10001")
+oncoseqos_set_api_token("your-api-token")
+```
+
+You can check the current configuration:
+
+``` r
+oncoseqos_get_server()
+oncoseqos_get_api_token()
+```
+
+By default, the token is masked when displayed.
+
+## Health Check
+
+The health check endpoint is public and does not require an API token.
+
+``` r
+oncoseqos_health()
+```
+
+Expected output is similar to:
+
+``` r
+$ok
+[1] TRUE
+
+$time
+[1] "2026-01-01 12:00:00"
+
+$job_root
+[1] "/app2/jobs"
+
+$auth_enabled
+[1] TRUE
+```
+
+If the health check fails, please check:
+
+1.  Whether the API server container is running.
+2.  Whether the server URL and port are correct.
+3.  Whether the cloud security group allows inbound TCP traffic to the
+    mapped port.
+4.  Whether the local firewall or server firewall blocks the port.
+
+## Basic Usage
+
+### 1. Hazard Rate from Median Survival Time
 
 ``` r
 lambda_from_median(median = 12)
 ```
 
-### Median of the sum of two exponential distributions
+This converts a median survival time to an exponential hazard rate:
+
+``` text
+lambda = log(2) / median
+```
+
+### 2. Median of the Sum of Two Exponential Survival Times
 
 Formula-based calculation:
 
@@ -78,42 +202,59 @@ median_sum_exp(
 )
 ```
 
-## Simulate one oncology trial
+## Simulate One Oncology Trial
+
+The following example simulates one trial with treatment and control
+arms.
 
 ``` r
-library(tibble)
-library(survival)
-library(dplyr)
-library(tidyr)
-library(purrr)
-library(tibble)
 trial <- simulate_one_trial(
   n_total = 282,
+
   median_pfs_ctl = 3,
   median_pfs_trt = 14.6,
+
   prop_ctl_no = 0.30,
   prop_ctl_subseq1 = 0.15,
   prop_ctl_subseq2 = 0.55,
+
   median_os_ctl_no = 9.5,
   median_postpd_ctl_subseq1 = 22,
   median_postpd_ctl_subseq2 = 15,
-  prop_trt_no = 0.9,
+
+  prop_trt_no = 0.90,
   prop_trt_subseq1 = 0.05,
   prop_trt_subseq2 = 0.05,
+
   median_os_trt_no = 25,
   median_postpd_trt_subseq1 = 22,
   median_postpd_trt_subseq2 = 15,
+
   interim_events = 138,
   final_events = 197,
+
   target_censor_rate = 0.29,
-  seed = 20260427
+  seed = 20260427,
+  enroll_duration = 11
 )
 ```
 
-> Note: The simulated data are intended for research and educational
-> demonstration only.
+The returned object contains simulated interim and final datasets:
 
-## Analyze interim and final data
+``` r
+names(trial)
+```
+
+Usually you will see objects such as:
+
+``` r
+trial$interim
+trial$final
+```
+
+## Analyze Interim and Final Data
+
+After simulating one trial, you can analyze interim and final OS data.
 
 ``` r
 ana_interim <- analyse_trial(
@@ -132,38 +273,24 @@ ana_interim
 ana_final
 ```
 
-## Grid simulation
+The analysis result usually includes:
 
-``` r
-res <- run_grid_simulation(
-  n_simu = 10000,
-  n_total = 282,
-  interim_events = 138,
-  final_events = 197,
-  alpha_interim = 0.0147,
-  alpha_final = 0.04551,
-  median_pfs_ctl = 3,
-  median_pfs_trt = 14.6,
-  median_os_ctl_no = 9.5,
-  median_postpd_ctl_subseq1 = 27,
-  median_postpd_ctl_subseq2 = 15,
-  median_os_trt_no = 25,
-  median_postpd_trt_subseq1 = 27,
-  median_postpd_trt_subseq2 = NULL,
-  prop_ctl_subseq1 = 0.15,
-  prop_ctl_subseq2 = seq(0.10, 0.80, by = 0.05),
-  prop_trt_subseq1 = 0.05,
-  prop_trt_subseq2 = 0,
-  target_censor_rate = 0.29,
-  hr_thr = 0.75,
-  seed = 202604
-)
+- Hazard ratio
+- log hazard ratio
+- standard error
+- z statistic
+- p value
+- median survival in treatment arm
+- median survival in control arm
+- 12-month survival rates
+- event and censoring information
 
-head(res$summary)
-```
+## Grid Simulation
 
-For README rendering, you may want to use a smaller number of
-simulations:
+Grid simulation may be computationally intensive. Therefore, `OncoSeqOS`
+submits the task to the API server and runs it asynchronously.
+
+### Submit and Wait for Completion
 
 ``` r
 res <- run_grid_simulation(
@@ -171,62 +298,163 @@ res <- run_grid_simulation(
   n_total = 282,
   interim_events = 138,
   final_events = 197,
+
   alpha_interim = 0.0147,
   alpha_final = 0.04551,
+
   median_pfs_ctl = 3,
   median_pfs_trt = 14.6,
+
   median_os_ctl_no = 9.5,
-  median_postpd_ctl_subseq1 = 27,
+  median_postpd_ctl_subseq1 = 22,
   median_postpd_ctl_subseq2 = 15,
+
   median_os_trt_no = 25,
-  median_postpd_trt_subseq1 = 27,
-  median_postpd_trt_subseq2 = NULL,
+  median_postpd_trt_subseq1 = 22,
+  median_postpd_trt_subseq2 = 15,
+
   prop_ctl_subseq1 = 0.15,
   prop_ctl_subseq2 = seq(0.10, 0.80, by = 0.10),
+
   prop_trt_subseq1 = 0.05,
-  prop_trt_subseq2 = 0,
+  prop_trt_subseq2 = 0.05,
+
   target_censor_rate = 0.29,
   hr_thr = 0.75,
-  seed = 202604
+  seed = 202604,
+
+  wait = TRUE,
+  interval_sec = 10,
+  max_wait_sec = 36000,
+  verbose = TRUE
 )
 
 head(res$summary)
 ```
 
-## Visualization
+### Submit Without Waiting
+
+If the simulation is large, you can submit the job first and query it
+later.
 
 ``` r
-suppressPackageStartupMessages({
-  library(ggplot2)
-  library(dplyr)
-  library(tidyr)
-  library(scales)
-  library(rlang)
-  library(stringr)
-})
-plots <- plot_pos_summary(
-  summary_data = res$summary,
-  x = "prop_ctl_subseq2",
-  hr_thr = 0.75,
-  therapy_name = "CD20/CD30",
-  return = "list"
+job <- run_grid_simulation(
+  n_simu = 10000,
+  wait = FALSE
 )
-plots$probability
-plots$survival_rate_12m
-plots$median_survival
-plots$mean_hr
+
+job$job_id
 ```
 
-## Main functions
+Check job status:
 
-| Function | Description |
-|----|----|
-| `lambda_from_median()` | Convert median survival time to an exponential hazard rate. |
-| `median_sum_exp()` | Calculate the median of the sum of two exponential distributions. |
-| `simulate_one_trial()` | Simulate one oncology trial. |
-| `analyse_trial()` | Analyze interim or final trial data. |
-| `run_grid_simulation()` | Run grid-based simulation scenarios. |
-| `plot_pos_summary()` | Visualize probability of success summaries. |
+``` r
+get_job_status(job$job_id)
+```
+
+Wait until completion:
+
+``` r
+wait_for_job(job$job_id)
+```
+
+Retrieve result:
+
+``` r
+res <- get_job_result(job$job_id)
+head(res$summary)
+```
+
+## Result Summary
+
+The grid simulation result contains a `summary` data frame.
+
+``` r
+names(res)
+head(res$summary)
+```
+
+Typical columns include:
+
+- `n_simu`
+- `prop_ctl_no`
+- `prop_ctl_subseq1`
+- `prop_ctl_subseq2`
+- `prop_trt_no`
+- `prop_trt_subseq1`
+- `prop_trt_subseq2`
+- `mean_hr_final`
+- `median_hr_final`
+- `prob_hr_lt`
+- `POS`
+- `final_CondPOS`
+- `interim_POS`
+- `mean_p_final`
+- `mean_censor_interim`
+- `mean_censor_final`
+
+## Common Issues
+
+### 1. Cannot connect to API server
+
+Please check whether the server URL includes the correct port.
+
+For example, if Docker was started with:
+
+``` bash
+-p 10001:10000
+```
+
+then the client should use:
+
+``` r
+oncoseqos_set_server("http://server-ip:10001")
+```
+
+Do not use:
+
+``` r
+oncoseqos_set_server("http://server-ip")
+```
+
+because this uses default port 80.
+
+### 2. Unauthorized or Forbidden
+
+If you see HTTP 401 or 403 errors, check whether the API token is
+configured correctly:
+
+``` r
+oncoseqos_set_api_token("your-api-token")
+```
+
+The token must be the same as the server environment variable:
+
+``` bash
+ONCOSEQOS_API_TOKEN
+```
+
+### 3. Job submitted but never finishes
+
+Check job status:
+
+``` r
+get_job_status(job_id)
+```
+
+If the job failed, the returned message should include the server-side
+error.
+
+### 4. Large simulation takes a long time
+
+For testing, start with a small value:
+
+``` r
+n_simu = 10
+```
+
+After confirming the workflow, increase it to a larger value such as
+1000 or 10000.
 
 ## Citation
 
@@ -236,3 +464,8 @@ corresponding package version.
 ## License
 
 Please see the `LICENSE` file for details.
+
+## Contact
+
+For issues, feature requests, or bug reports, please open an issue on
+GitHub.

@@ -2,7 +2,7 @@
 % Please edit documentation in R/plot_pos_lines.R
 \name{plot_pos_lines}
 \alias{plot_pos_lines}
-\title{Plot POS Lines Through API}
+\title{Plot POS Lines}
 \usage{
 plot_pos_lines(
   data,
@@ -13,10 +13,10 @@ plot_pos_lines(
   title = NULL,
   xlab = NULL,
   ylab = NULL,
-  y_transform = "identity",
-  x_transform = "percent",
+  y_transform = identity,
+  x_transform = function(z) z * 100,
   y_limits = NULL,
-  y_breaks = NULL,
+  y_breaks = ggplot2::waiver(),
   x_breaks_n = 8,
   y_breaks_n = 6,
   y_label_accuracy = NULL,
@@ -30,19 +30,17 @@ plot_pos_lines(
   point_size = NULL,
   title_width = 68,
   include_zero = FALSE,
-  grid = TRUE,
-  return_type = "plot",
-  timeout_sec = 3600
+  grid = TRUE
 )
 }
 \arguments{
 \item{data}{A data.frame containing plotting data.}
 
-\item{x}{Column name used as x-axis.}
+\item{x}{Character string. Column name used as x-axis.}
 
-\item{y_cols}{Character vector of y-axis column names.}
+\item{y_cols}{Character vector. Column names used as y-axis variables.}
 
-\item{labels}{Optional labels for y columns.}
+\item{labels}{Optional character vector of labels for `y_cols`.}
 
 \item{colors}{Optional named or unnamed color vector.}
 
@@ -52,13 +50,13 @@ plot_pos_lines(
 
 \item{ylab}{Y-axis label.}
 
-\item{y_transform}{Y transformation name. For example: "identity", "percent".}
+\item{y_transform}{Function used to transform y values. Default is `identity`.}
 
-\item{x_transform}{X transformation name. For example: "identity", "percent".}
+\item{x_transform}{Function used to transform x values. Default transforms proportions to percentages.}
 
 \item{y_limits}{Optional numeric vector of length 2.}
 
-\item{y_breaks}{Optional y breaks. Use NULL to let server decide automatically.}
+\item{y_breaks}{Optional y-axis breaks. Use `ggplot2::waiver()` to let ggplot2 decide.}
 
 \item{x_breaks_n}{Number of x-axis breaks.}
 
@@ -70,7 +68,7 @@ plot_pos_lines(
 
 \item{legend_title}{Legend title.}
 
-\item{legend_position}{Legend position. Can be "auto", "right", "bottom", etc.,
+\item{legend_position}{Legend position. Can be `"auto"`, `"right"`, `"bottom"`, `"none"`,
 or a numeric vector of length 2.}
 
 \item{width}{Plot width.}
@@ -85,30 +83,13 @@ or a numeric vector of length 2.}
 
 \item{title_width}{Title wrap width.}
 
-\item{include_zero}{Whether y-axis limits should include zero.}
+\item{include_zero}{Logical. Whether y-axis limits should include zero.}
 
-\item{grid}{Whether to show grid.}
-
-\item{return_type}{Type of result returned by API. For example: "plot", "png", "svg".}
-
-\item{timeout_sec}{API timeout in seconds.}
+\item{grid}{Logical. Whether to show grid lines.}
 }
 \value{
-API response containing plot result or plot metadata.
+A ggplot object.
 }
 \description{
-Calls server API to generate POS line plot.
-}
-\examples{
-\dontrun{
-p <- plot_pos_lines(
-  data = res$summary,
-  x = "prop_ctl_subseq2",
-  y_cols = c("pos_interim", "pos_final"),
-  labels = c("Interim POS", "Final POS"),
-  xlab = "Control subsequent therapy 2 proportion (\%)",
-  ylab = "POS",
-  title = "Probability of Success by Subsequent Therapy Proportion"
-)
-}
+Generate a line plot for probability of success or related summary metrics.
 }

@@ -53,8 +53,8 @@ auto_legend_position <- function(data, x, y, prefer = c("auto", "left", "right",
   x_val <- data[[x]]
   y_val <- data[[y]]
   
-  x_mid <- median(x_val, na.rm = TRUE)
-  y_mid <- median(y_val, na.rm = TRUE)
+  x_mid <- stats::median(x_val, na.rm = TRUE)
+  y_mid <- stats::median(y_val, na.rm = TRUE)
   
   upper_right_density <- mean(x_val > x_mid & y_val > y_mid, na.rm = TRUE)
   upper_left_density  <- mean(x_val < x_mid & y_val > y_mid, na.rm = TRUE)
