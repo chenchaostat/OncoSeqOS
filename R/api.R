@@ -1,4 +1,7 @@
 # R/api.R
+#' @importFrom httr POST GET content content_type_json status_code add_headers timeout
+#' @importFrom jsonlite toJSON fromJSON
+NULL
 
 .api_env <- new.env(parent = emptyenv())
 

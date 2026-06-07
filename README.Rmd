@@ -22,7 +22,7 @@ knitr::opts_chunk$set(
 
 ## Disclaimer
 
-`OncoSeqOS` is provided for research and educational purposes only.  
+`OncoSeqOS` is provided for research and educational purposes only.\
 It is not intended to provide medical advice, clinical recommendations, regulatory guidance, or commercial decision-making support.
 
 Users are responsible for independently validating all simulation assumptions, model outputs, and statistical conclusions before using them in any scientific, regulatory, or business context.
@@ -33,26 +33,26 @@ Users are responsible for independently validating all simulation assumptions, m
 
 The package uses a client-server architecture:
 
-- The **server side** runs the computational simulation API.
-- The **R package client** sends simulation requests to the API server.
-- Long-running grid simulations are submitted asynchronously as background jobs.
-- Users can query job progress and retrieve results after completion.
+-   The **server side** runs the computational simulation API.
+-   The **R package client** sends simulation requests to the API server.
+-   Long-running grid simulations are submitted asynchronously as background jobs.
+-   Users can query job progress and retrieve results after completion.
 
 Main features include:
 
-- Convert median survival time to exponential hazard rate.
-- Calculate the median of the sum of two exponential survival times.
-- Simulate one oncology trial.
-- Analyze interim and final OS data.
-- Run grid-based simulation scenarios.
-- Track long-running simulation jobs through an API.
-- Retrieve final simulation summary results.
+-   Convert median survival time to exponential hazard rate.
+-   Calculate the median of the sum of two exponential survival times.
+-   Simulate one oncology trial.
+-   Analyze interim and final OS data.
+-   Run grid-based simulation scenarios.
+-   Track long-running simulation jobs through an API.
+-   Retrieve final simulation summary results.
 
 ## Architecture
 
 A typical workflow is:
 
-```text
+``` text
 R client package
       |
       | HTTP request
@@ -76,14 +76,14 @@ The server is usually deployed with Docker. The client only needs the R package 
 
 ### Install from GitHub
 
-```r
+``` r
 # install.packages("remotes")
 remotes::install_github("chenchaostat/OncoSeqOS")
 ```
 
 Load the package:
 
-```r
+``` r
 library(OncoSeqOS)
 ```
 
@@ -93,7 +93,7 @@ Before using most functions, you need to configure the API server URL and API to
 
 For example, if your server IP is `116.62.190.134` and Docker maps the API service to host port `10001`:
 
-```r
+``` r
 library(OncoSeqOS)
 
 oncoseqos_set_server("http://116.62.190.134:10001")
@@ -102,7 +102,7 @@ oncoseqos_set_api_token("your-api-token")
 
 You can check the current configuration:
 
-```r
+``` r
 oncoseqos_get_server()
 oncoseqos_get_api_token()
 ```
@@ -113,13 +113,13 @@ By default, the token is masked when displayed.
 
 The health check endpoint is public and does not require an API token.
 
-```r
+``` r
 oncoseqos_health()
 ```
 
 Expected output is similar to:
 
-```r
+``` r
 $ok
 [1] TRUE
 
@@ -135,22 +135,22 @@ $auth_enabled
 
 If the health check fails, please check:
 
-1. Whether the API server container is running.
-2. Whether the server URL and port are correct.
-3. Whether the cloud security group allows inbound TCP traffic to the mapped port.
-4. Whether the local firewall or server firewall blocks the port.
+1.  Whether the API server container is running.
+2.  Whether the server URL and port are correct.
+3.  Whether the cloud security group allows inbound TCP traffic to the mapped port.
+4.  Whether the local firewall or server firewall blocks the port.
 
 ## Basic Usage
 
 ### 1. Hazard Rate from Median Survival Time
 
-```r
+``` r
 lambda_from_median(median = 12)
 ```
 
 This converts a median survival time to an exponential hazard rate:
 
-```text
+``` text
 lambda = log(2) / median
 ```
 
@@ -158,7 +158,7 @@ lambda = log(2) / median
 
 Formula-based calculation:
 
-```r
+``` r
 median_sum_exp(
   median_pfs = 3,
   median_postpd = 27,
@@ -168,7 +168,7 @@ median_sum_exp(
 
 Simulation-based calculation:
 
-```r
+``` r
 median_sum_exp(
   median_pfs = 3,
   median_postpd = 27,
@@ -182,7 +182,7 @@ median_sum_exp(
 
 The following example simulates one trial with treatment and control arms.
 
-```r
+``` r
 trial <- simulate_one_trial(
   n_total = 282,
 
@@ -216,13 +216,13 @@ trial <- simulate_one_trial(
 
 The returned object contains simulated interim and final datasets:
 
-```r
+``` r
 names(trial)
 ```
 
 Usually you will see objects such as:
 
-```r
+``` r
 trial$interim
 trial$final
 ```
@@ -231,7 +231,7 @@ trial$final
 
 After simulating one trial, you can analyze interim and final OS data.
 
-```r
+``` r
 ana_interim <- analyse_trial(
   df = trial$interim,
   time_var = "os_time_interim",
@@ -250,15 +250,15 @@ ana_final
 
 The analysis result usually includes:
 
-- Hazard ratio
-- log hazard ratio
-- standard error
-- z statistic
-- p value
-- median survival in treatment arm
-- median survival in control arm
-- 12-month survival rates
-- event and censoring information
+-   Hazard ratio
+-   log hazard ratio
+-   standard error
+-   z statistic
+-   p value
+-   median survival in treatment arm
+-   median survival in control arm
+-   12-month survival rates
+-   event and censoring information
 
 ## Grid Simulation
 
@@ -266,7 +266,7 @@ Grid simulation may be computationally intensive. Therefore, `OncoSeqOS` submits
 
 ### Submit and Wait for Completion
 
-```r
+``` r
 res <- run_grid_simulation(
   n_simu = 100,
   n_total = 282,
@@ -310,7 +310,7 @@ head(res$summary)
 
 If the simulation is large, you can submit the job first and query it later.
 
-```r
+``` r
 job <- run_grid_simulation(
   n_simu = 10000,
   wait = FALSE
@@ -321,19 +321,19 @@ job$job_id
 
 Check job status:
 
-```r
+``` r
 get_job_status(job$job_id)
 ```
 
 Wait until completion:
 
-```r
+``` r
 wait_for_job(job$job_id)
 ```
 
 Retrieve result:
 
-```r
+``` r
 res <- get_job_result(job$job_id)
 head(res$summary)
 ```
@@ -342,29 +342,29 @@ head(res$summary)
 
 The grid simulation result contains a `summary` data frame.
 
-```r
+``` r
 names(res)
 head(res$summary)
 ```
 
 Typical columns include:
 
-- `n_simu`
-- `prop_ctl_no`
-- `prop_ctl_subseq1`
-- `prop_ctl_subseq2`
-- `prop_trt_no`
-- `prop_trt_subseq1`
-- `prop_trt_subseq2`
-- `mean_hr_final`
-- `median_hr_final`
-- `prob_hr_lt`
-- `POS`
-- `final_CondPOS`
-- `interim_POS`
-- `mean_p_final`
-- `mean_censor_interim`
-- `mean_censor_final`
+-   `n_simu`
+-   `prop_ctl_no`
+-   `prop_ctl_subseq1`
+-   `prop_ctl_subseq2`
+-   `prop_trt_no`
+-   `prop_trt_subseq1`
+-   `prop_trt_subseq2`
+-   `mean_hr_final`
+-   `median_hr_final`
+-   `prob_hr_lt`
+-   `POS`
+-   `final_CondPOS`
+-   `interim_POS`
+-   `mean_p_final`
+-   `mean_censor_interim`
+-   `mean_censor_final`
 
 ## Common Issues
 
@@ -374,19 +374,19 @@ Please check whether the server URL includes the correct port.
 
 For example, if Docker was started with:
 
-```bash
+``` bash
 -p 10001:10000
 ```
 
 then the client should use:
 
-```r
+``` r
 oncoseqos_set_server("http://server-ip:10001")
 ```
 
 Do not use:
 
-```r
+``` r
 oncoseqos_set_server("http://server-ip")
 ```
 
@@ -396,13 +396,13 @@ because this uses default port 80.
 
 If you see HTTP 401 or 403 errors, check whether the API token is configured correctly:
 
-```r
+``` r
 oncoseqos_set_api_token("your-api-token")
 ```
 
 The token must be the same as the server environment variable:
 
-```bash
+``` bash
 ONCOSEQOS_API_TOKEN
 ```
 
@@ -410,7 +410,7 @@ ONCOSEQOS_API_TOKEN
 
 Check job status:
 
-```r
+``` r
 get_job_status(job_id)
 ```
 
@@ -420,7 +420,7 @@ If the job failed, the returned message should include the server-side error.
 
 For testing, start with a small value:
 
-```r
+``` r
 n_simu = 10
 ```
 
@@ -436,4 +436,4 @@ Please see the `LICENSE` file for details.
 
 ## Contact
 
-For issues, feature requests, or bug reports, please open an issue on GitHub.
+For issues, feature requests, or bug reports, please open an issue on GitHub: <https://github.com/chenchaostat/OncoSeqOS/issues>. You can also contact me via email at [chenchaostat\@163.com](mailto:chenchaostat@163.com){.email}.
