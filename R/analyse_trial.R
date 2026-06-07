@@ -13,7 +13,15 @@ analyse_trial <- function(df,
                           status_var) {
   
   if (!is.data.frame(df)) {
-    stop("`df` must be a data.frame.", call. = FALSE)
+    df <- as.data.frame(df)
+  }
+  
+  if (!time_var %in% names(df)) {
+    stop("`time_var` not found in df: ", time_var, call. = FALSE)
+  }
+  
+  if (!status_var %in% names(df)) {
+    stop("`status_var` not found in df: ", status_var, call. = FALSE)
   }
   
   body <- list(
