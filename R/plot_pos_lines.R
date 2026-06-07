@@ -30,6 +30,7 @@
 #' @param title_width Title wrap width.
 #' @param include_zero Logical. Whether y-axis limits should include zero.
 #' @param grid Logical. Whether to show grid lines.
+#' @importFrom rlang .data
 #'
 #' @return A ggplot object.
 #'
@@ -96,20 +97,22 @@ plot_pos_lines <- function(
   }
   
   plot_dat <- data |>
-    dplyr::arrange(rlang::.data[[x]]) |>
+    dplyr::arrange(.data[[x]]) |>
     dplyr::mutate(
-      .x_plot = x_transform(rlang::.data[[x]])
+      .x_plot = x_transform(.data[[x]])
     ) |>
-    dplyr::select(rlang::.data$.x_plot, dplyr::all_of(y_cols)) |>
+    dplyr::select(dplyr::all_of(c(".x_plot", y_cols))) |>
     tidyr::pivot_longer(
       cols = dplyr::all_of(y_cols),
       names_to = ".metric",
       values_to = ".value"
     ) |>
     dplyr::mutate(
-      .metric = factor(rlang::.data$.metric, levels = y_cols, labels = labels),
-      .value = y_transform(rlang::.data$.value)
+      .metric = factor(.data$.metric, levels = y_cols, labels = labels),
+      .value = y_transform(.data$.value)
     )
+  
+  
   
   y_lim <- auto_limits(
     plot_dat$.value,
@@ -140,15 +143,15 @@ plot_pos_lines <- function(
     title <- stringr::str_wrap(title, width = title_width)
   }
   
-  p <- ggplot2::ggplot(
-    plot_dat,
-    ggplot2::aes(
-      x = rlang::.data$.x_plot,
-      y = rlang::.data$.value,
-      color = rlang::.data$.metric,
-      group = rlang::.data$.metric
-    )
-  ) +
+    p <- ggplot2::ggplot(
+      plot_dat,
+      ggplot2::aes(
+        x = .data$.x_plot,
+        y = .data$.value,
+        color = .data$.metric,
+        group = .data$.metric
+      )
+    )+
     ggplot2::geom_line(linewidth = line_width, na.rm = TRUE) +
     ggplot2::geom_point(size = point_size, na.rm = TRUE) +
     ggplot2::scale_color_manual(values = colors, drop = FALSE) +

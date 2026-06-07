@@ -76,7 +76,8 @@ plot_pos_summary <- function(
   col_hr <- c("Mean hazard ratio" = "#2C7FB8")
   
   dat <- summary_data |>
-    dplyr::arrange(rlang::.data[[x]])
+    dplyr::arrange(.data[[x]])
+  
   
   
   p1 <- plot_pos_lines(
@@ -137,7 +138,7 @@ plot_pos_summary <- function(
   )
   
   p4 <- plot_pos_lines(
-    data = dplyr::mutate(dat, .mean_hr_label = rlang::.data$mean_hr_final),
+    data = dplyr::mutate(dat, .mean_hr_label = .data$mean_hr_final),
     x = x,
     y_cols = ".mean_hr_label",
     labels = "Mean hazard ratio",
