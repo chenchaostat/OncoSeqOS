@@ -444,4 +444,4 @@ Please see the `LICENSE` file for details.
 
 ## Contact {#contact}
 
-For issues, feature requests, or bug reports, please open an issue on GitHub: <https://github.com/chenchaostat/OncoSeqOS/issues>. You can also contact me via email at [chenchaostat\@163.com](mailto:chenchaostat@163.com){.email}.
+For issues, feature requests, or bug reports, please open an issue on GitHub: <https://github.com/chenchaostat/OncoSeqOS/issues>. You can also contact me via email at [chenchaostat\@163.com](mailto:chenchaostat@163.com).
