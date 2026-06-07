@@ -508,6 +508,7 @@ simulate_one_trial <- function(
 #' @param enroll_duration Numeric. Enrollment duration.
 #' @param target_censor_rate Numeric. Target censoring rate.
 #' @param seed Integer. Random seed.
+#' @param max_seconds_per_sim Integer. Maximum time allowed per simulation (seconds)
 #'
 #' @return A list containing job submission information, including job ID and status/result URLs.
 #'
@@ -826,6 +827,7 @@ wait_for_job <- function(job_id,
 #' @param wait Logical. Whether to wait until the submitted job finishes.
 #' @param interval_sec Numeric. Polling interval in seconds when `wait = TRUE`.
 #' @param max_wait_sec Numeric. Maximum waiting time in seconds.
+#' @param max_stall_sec Numeric. Maximum allowed seconds without progress change.
 #' @param verbose Logical. Whether to print progress messages.
 #'
 #' @return

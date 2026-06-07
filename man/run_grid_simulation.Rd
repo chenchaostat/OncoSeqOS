@@ -85,6 +85,8 @@ run_grid_simulation(
 
 \item{max_wait_sec}{Numeric. Maximum waiting time in seconds.}
 
+\item{max_stall_sec}{Numeric. Maximum allowed seconds without progress change.}
+
 \item{verbose}{Logical. Whether to print progress messages.}
 }
 \value{

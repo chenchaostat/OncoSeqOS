@@ -74,6 +74,8 @@ submit_grid_simulation(
 \item{target_censor_rate}{Numeric. Target censoring rate.}
 
 \item{seed}{Integer. Random seed.}
+
+\item{max_seconds_per_sim}{Integer. Maximum time allowed per simulation (seconds)}
 }
 \value{
 A list containing job submission information, including job ID and status/result URLs.
